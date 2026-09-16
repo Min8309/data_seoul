@@ -3,6 +3,7 @@ import pandas as pd
 import pydeck as pdk
 import joblib
 import base64
+import altair as alt
 
 from pathlib import Path
 
@@ -51,14 +52,37 @@ st.write(
 # 4. 메뉴 선택
 # ----------------------------
 
-mode = st.radio(
-    "원하는 서비스를 선택하세요.",
-    [
-        "👔 사장님 모드",
-        "🔥 소비자 모드"
-    ],
-    horizontal=True
+st.markdown("원하는 서비스를 선택하세요.")
+
+col_owner, col_switch, col_consumer, empty = st.columns(
+    [1.15, 0.55, 1.15, 4.5],
+    gap="small"
 )
+
+with col_owner:
+    st.markdown(
+        '<div class="mode-label mode-owner">👔 사장님 모드</div>',
+        unsafe_allow_html=True
+    )
+
+with col_switch:
+    consumer_mode = st.toggle(
+        "모드 선택",
+        key="mode_switch",
+        label_visibility="collapsed"
+    )
+
+with col_consumer:
+    st.markdown(
+        '<div class="mode-label mode-consumer">🔥 소비자 모드</div>',
+        unsafe_allow_html=True
+    )
+
+if consumer_mode:
+    mode = "🔥 소비자 모드"
+else:
+    mode = "👔 사장님 모드"
+
 # =====================================
 # 🎨 모드별 배경
 # =====================================
@@ -145,11 +169,48 @@ st.markdown(
         border-right: 1px solid rgba(255,255,255,0.5);
         border-bottom: 1px solid rgba(255,255,255,0.5);
     }}
+    /* =====================================
+   👔 사장님 ↔ 🔥 소비자 모드
+   ===================================== */
+
+.mode-label {{
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #17384c !important;
+    white-space: nowrap;
+    height: 40px;
+    line-height: 40px;
+}}
+
+.mode-owner {{
+    text-align: left;
+}}
+
+.mode-consumer {{
+    text-align: left;
+}}
 
 
+/* 가운데 스위치 공간 */
+div[data-testid="stToggle"] {{
+    height: 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}}
+
+
+/* ★ 실제 스위치 확대 */
+div[data-testid="stToggle"] [data-baseweb="checkbox"] {{
+    transform: scale(2.0) !important;
+    transform-origin: center center !important;
+}}
     </style>
     """,
-    unsafe_allow_html=True
+unsafe_allow_html=True
 )
 
   
@@ -515,23 +576,83 @@ if mode == "👔 사장님 모드":
     # TOP 10 추천 점수 그래프
     # ----------------------------
 
-    st.subheader("📊 추천 상권 TOP 10 점수 비교")
+    st.subheader("📈 추천 상권 TOP 10 점수 비교")
 
     chart_data = result[
         [
-            "상권_코드_명",
-            "평균_창업추천점수"
+          "상권_코드_명",
+          "평균_창업추천점수"
         ]
-    ].copy()
+].copy()
 
-    chart_data = chart_data.set_index(
-        "상권_코드_명"
+# 순서 유지를 위한 번호
+    chart_data["순서"] = range(1, len(chart_data) + 1)
+
+    
+
+# 아래쪽 옅은 영역
+    area = alt.Chart(chart_data).mark_area(
+        color="#D9795F",
+        opacity=0.15
+    ).encode(
+        x=alt.X(
+            "상권_코드_명:N",
+            sort=chart_data["상권_코드_명"].tolist(),
+            title=None,
+            axis=alt.Axis(labelAngle=-45)
+        ),
+        y=alt.Y(
+            "평균_창업추천점수:Q",
+            title="창업 추천 점수",
+            scale=alt.Scale(domain=[0, 100])
+        )
     )
 
-    st.bar_chart(
-        chart_data,
-        color="#2F6F73"
+    line = alt.Chart(chart_data).mark_line(
+        color="#D9795F",
+        strokeWidth=3
+    ).encode(
+        x=alt.X(
+            "상권_코드_명:N",
+            sort=chart_data["상권_코드_명"].tolist()
+        ),
+        y="평균_창업추천점수:Q"
     )
+
+    points = alt.Chart(chart_data).mark_circle(
+        color="#D9795F",
+        size=110,
+        stroke="white",
+        strokeWidth=2
+    ).encode(
+        x=alt.X(
+            "상권_코드_명:N",
+            sort=chart_data["상권_코드_명"].tolist()
+        ),
+        y="평균_창업추천점수:Q",
+        tooltip=[
+            alt.Tooltip(
+                "상권_코드_명:N",
+                title="상권"
+            ),
+            alt.Tooltip(
+                "평균_창업추천점수:Q",
+                title="창업추천점수",
+                format=".2f"
+            )
+        ]
+    )
+
+    final_chart = (
+        area + line + points
+    ).properties(
+        height=350
+    )
+
+    st.altair_chart(
+        final_chart,
+        use_container_width=True
+    ) 
       
 
       
@@ -1246,58 +1367,95 @@ else:
 
     st.divider()
 
-    st.subheader("📊 서울 핫플 TOP 20 점수 비교")
+    st.subheader("📈 서울 핫플 TOP 20 점수 비교")
 
     hot_chart = latest[
-        [
-            "상권_코드_명",
-            "핫플점수"
-        ]
+    [
+        "상권_코드_명",
+        "핫플점수"
+    ]
     ].copy()
 
-    hot_chart = hot_chart.set_index(
-        "상권_코드_명"
+
+# ==============================
+# 아래쪽 옅은 영역
+# ==============================
+    area = alt.Chart(hot_chart).mark_area(
+        color="#D9795F",
+        opacity=0.15
+    ).encode(
+        x=alt.X(
+            "상권_코드_명:N",
+            sort=hot_chart["상권_코드_명"].tolist(),
+            title=None,
+            axis=alt.Axis(labelAngle=-45)
+        ),
+        y=alt.Y(
+            "핫플점수:Q",
+            title="핫플 점수",
+            scale=alt.Scale(domain=[0, 100])
+        )
     )
 
-    st.bar_chart(
-        hot_chart,
-        color="#D9795F"
+    # 선
+    line = alt.Chart(hot_chart).mark_line(
+        color="#D9795F",
+        strokeWidth=3
+    ).encode(
+        x=alt.X(
+            "상권_코드_명:N",
+            sort=hot_chart["상권_코드_명"].tolist()
+        ),
+        y="핫플점수:Q"
     )
+
+    # 동그란 점
+    points = alt.Chart(hot_chart).mark_circle(
+        color="#D9795F",
+        size=110,
+        stroke="white",
+        strokeWidth=2
+    ).encode(
+        x=alt.X(
+            "상권_코드_명:N",
+            sort=hot_chart["상권_코드_명"].tolist()
+        ),
+        y="핫플점수:Q",
+        tooltip=[
+            alt.Tooltip(
+                "상권_코드_명:N",
+                title="상권"
+            ),
+            alt.Tooltip(
+                "핫플점수:Q",
+                title="핫플점수",
+                format=".2f"
+            )
+        ]
+    )
+
+    # 영역 + 선 + 점
+    final_hot_chart = (
+        area + line + points
+    ).properties(
+        height=350
+    )
+
+    st.altair_chart(
+        final_hot_chart,
+        use_container_width=True
+    )
+    
+
+
+
 
     
 
    
     
-      # =====================================
-    # 🔥 1위 핫플 상세
-    # =====================================
+  
 
-    if len(latest) > 0:
-
-        top = latest.iloc[0]
-
-        st.divider()
-
-        st.subheader("🔥 top 10핫플 상세")
-
-        # -----------------------------
-        # 1위 상권 소개
-        # -----------------------------
-
-        top_card = f"""
-<div class="hotplace-card">
-<div style="font-size:14px; font-weight:700; color:#B95F47;">
-🔥 2025년 4분기 핫플 1위
-</div>
-
-
-
-
-<div style="font-size:15px; color:#455a64; margin-top:8px;">
-유동인구 · 2030 비율 · 주말 · 야간 방문 특성을 종합한 결과입니다.
-</div>
-</div>
-"""
        # =====================================
     # 🔥 TOP 10 핫플 상세
     # =====================================
