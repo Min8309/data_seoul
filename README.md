@@ -22,6 +22,6 @@ TOP 10 핫플 상세 조회
 핵심 목표
 
 복잡한 서울 상권 공공데이터를 일반 사용자도 쉽게 이해할 수 있는 추천 서비스로 변환
-
+https://dataseoul.streamlit.app/
 <img width="1325" height="833" alt="image" src="https://github.com/user-attachments/assets/2ff60f33-acb1-4d35-8130-2b42cf98e9ae" />
 <img width="1306" height="842" alt="image" src="https://github.com/user-attachments/assets/92db1fbd-50d0-4a77-9480-16fcc6d0f0e3" />
