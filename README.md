@@ -1,5 +1,8 @@
 1. 프로젝트 개요
 프로젝트 목적
+<img width="2160" height="1832" alt="image" src="https://github.com/user-attachments/assets/4c3d4e39-45d0-405a-9431-93e1da183891" />
+
+
 
 서울시 상권 데이터를 활용하여 두 가지 사용자 서비스를 구현했습니다.
 
