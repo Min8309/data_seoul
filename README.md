@@ -45,3 +45,26 @@ https://dataseoul.streamlit.app/
 
 <img width="876" height="447" alt="image" src="https://github.com/user-attachments/assets/fc140995-dcd6-418e-b603-a864079496e0" />
 
+
+## 로컬 개발
+
+Python 3.12에서 실행 및 검증했습니다. 저장된 모델과의 호환성을 위해
+`scikit-learn` 버전을 유지하세요.
+
+```bash
+python3.12 -m venv /workspace/venvs/data_seoul
+/workspace/venvs/data_seoul/bin/python -m pip install -r requirements.txt
+/workspace/venvs/data_seoul/bin/python -m streamlit run src/app.py --server.headless=true --browser.gatherUsageStats=false
+```
+
+저장소 루트에서 실행하는 것을 권장합니다. 앱은 포함된 가공 데이터와 학습 모델을
+사용하므로 최초 실행을 위해 전처리 또는 재학습할 필요가 없습니다.
+소비자 질문 기능은 키워드 기반 데이터 조회이며 외부 AI API 키가 필요하지 않습니다.
+`src/01_*.py`부터 `src/12_*.py`까지는 데이터 처리 및 학습 스크립트로,
+실행하면 가공 데이터나 모델 파일을 덮어쓸 수 있습니다.
+
+앱의 두 모드, 매출 예측, 질문 조회, 상세 선택을 검증하려면:
+
+```bash
+/workspace/venvs/data_seoul/bin/python -m unittest discover -s tests -v
+```

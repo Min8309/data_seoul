@@ -25,16 +25,23 @@ st.set_page_config(
 # 2. 데이터 불러오기
 # ----------------------------
 
-startup = pd.read_csv(
-    "data/processed/startup_ranking_map.csv"
-)
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-hotplace = pd.read_csv(
-    "data/processed/hotplace_score_map.csv"
-)
-ai_model = joblib.load(
-    "models/final_sales_model.pkl"
-)
+
+@st.cache_data
+def load_data():
+    return (
+        pd.read_csv(BASE_DIR / "data/processed/startup_ranking_map.csv"),
+        pd.read_csv(BASE_DIR / "data/processed/hotplace_score_map.csv"),
+    )
+
+
+@st.cache_resource
+def load_model():
+    return joblib.load(BASE_DIR / "models/final_sales_model.pkl")
+
+
+startup, hotplace = load_data()
 
 # ----------------------------
 # 3. 제목
@@ -86,8 +93,6 @@ else:
 # =====================================
 # 🎨 모드별 배경
 # =====================================
-
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 if mode == "👔 사장님 모드":
     background_path = BASE_DIR / "assets" / "01.jpg"
@@ -221,6 +226,7 @@ unsafe_allow_html=True
 # ==================================================
 if mode == "👔 사장님 모드":
 
+    ai_model = load_model()
     st.header("👔 창업 추천")
 
     st.write(
@@ -248,35 +254,6 @@ if mode == "👔 사장님 모드":
         "창업하고 싶은 업종을 선택하세요.",
         industry_list
     )
-         # =====================================
-    # 💬 상권 AI 질문
-    # =====================================
-
-    st.divider()
-
-    st.subheader("💬 상권 AI에게 질문하기")
-
-    st.caption(
-        f"현재 선택 업종: {selected_industry}"
-    )
-
-    user_question = st.text_input(
-        "궁금한 내용을 입력하세요.",
-        placeholder=f"예: {selected_industry} 창업하기 좋은 상권은 어디야?"
-    )
-
-    if st.button(
-        "🤖 AI에게 질문",
-        key="seller_ai_question"
-    ):
-
-        if user_question:
-            st.write("질문:")
-            st.write(user_question)
-
-        else:
-            st.warning("질문을 입력해주세요.")
-
     # =====================================
     # 추천 상권 데이터 만들기
     # =====================================
@@ -377,7 +354,7 @@ if mode == "👔 사장님 모드":
 
     st.dataframe(
         display_result,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
 
         column_config={
@@ -387,31 +364,31 @@ if mode == "👔 사장님 모드":
                 format="%d"
             ),
 
-            "평균 점포당 월매출": st.column_config.NumberColumn(
+            "평균_점포당_월매출": st.column_config.NumberColumn(
                 "평균 점포당 월매출",
                 format="%,.0f원"
             ),
 
-            "평균 유동인구": st.column_config.NumberColumn(
+            "평균_총_유동인구": st.column_config.NumberColumn(
                 "평균 유동인구",
                 format="%,.0f명"
             ),
 
-            "2030 비율": st.column_config.NumberColumn(
+            "평균_2030비율": st.column_config.NumberColumn(
                 "2030 비율",
                 format="%.1f%%"
             ),
 
-            "폐업 비율": st.column_config.NumberColumn(
+            "평균_폐업비율": st.column_config.NumberColumn(
                 "폐업 비율",
                 format="%.1f%%"
             ),
 
-            "추천 점수": st.column_config.NumberColumn(
+            "평균_창업추천점수": st.column_config.NumberColumn(
                 "추천 점수",
                 format="%.1f점"
             ),
-            "AI 예상 월매출": st.column_config.NumberColumn(
+            "AI_예상_월매출": st.column_config.NumberColumn(
                 "🤖 AI 예상 월매출",
                 format="%,.0f원"
             )
@@ -496,26 +473,6 @@ if mode == "👔 사장님 모드":
         .map("{:,.0f}원".format)
     )
     
-    seller_map["월매출표시"] = (
-            seller_map["평균_점포당_월매출"]
-            .round(0)
-            .map("{:,.0f}원".format)
-        )
-    
-    seller_map["유동인구표시"] = (
-            seller_map["평균_총_유동인구"]
-            .round(0)
-            .map("{:,.0f}명".format)
-        )
-    
-    seller_map["2030표시"] = (
-            seller_map["평균_2030비율"]
-            .round(1)
-            .astype(str)
-            + "%"
-        )
-    
-    
         # ----------------------------
         # 지도 점 만들기
         # ----------------------------
@@ -585,8 +542,6 @@ if mode == "👔 사장님 모드":
         ]
 ].copy()
 
-# 순서 유지를 위한 번호
-    chart_data["순서"] = range(1, len(chart_data) + 1)
 
     
 
@@ -651,7 +606,7 @@ if mode == "👔 사장님 모드":
 
     st.altair_chart(
         final_chart,
-        use_container_width=True
+        width="stretch"
     ) 
       
 
@@ -690,10 +645,12 @@ if mode == "👔 사장님 모드":
             abs(sales_gap)
             / top["평균_점포당_월매출"]
             * 100
+            if top["평균_점포당_월매출"] > 0
+            else None
         )
         st.metric(
-            "AI 예측 오차율",
-            f"{error_rate:.1f}%"
+            "평균 매출 대비 예측 차이율",
+            f"{error_rate:.1f}%" if error_rate is not None else "계산 불가"
         )
         if sales_gap >= 0:
 
@@ -1056,34 +1013,6 @@ else:
 
 
     # ----------------------------
-    # 가장 최근 년/분기
-    # ----------------------------
-
-    latest_year = hotplace[
-        "기준_년_코드"
-    ].max()
-
-
-    latest_quarter = hotplace[
-        hotplace["기준_년_코드"]
-        == latest_year
-    ]["기준_분기_코드"].max()
-
-
-    latest = hotplace[
-        (
-            hotplace["기준_년_코드"]
-            == latest_year
-        )
-        &
-        (
-            hotplace["기준_분기_코드"]
-            == latest_quarter
-        )
-    ].copy()
-
-
-    # ----------------------------
     # 핫플 순위
     # ----------------------------
 
@@ -1139,7 +1068,7 @@ else:
 
     st.dataframe(
         display_hot,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
 
@@ -1284,7 +1213,7 @@ else:
             initial_view_state=consumer_view,
             tooltip=consumer_tooltip
         ),
-        use_container_width=True
+        width="stretch"
     )
 
 
@@ -1342,7 +1271,7 @@ else:
 
     st.dataframe(
         shop_display,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "평균 월매출": st.column_config.NumberColumn(
@@ -1443,7 +1372,7 @@ else:
 
     st.altair_chart(
         final_hot_chart,
-        use_container_width=True
+        width="stretch"
     )
     
 
@@ -1502,7 +1431,7 @@ else:
     font-weight:700;
     color:#B95F47;
 ">
-🔥 2025년 4분기 핫플 {top_rank}위
+🔥 {latest_year}년 {latest_quarter}분기 핫플 {top_rank}위
 </div>
 
 <div style="
