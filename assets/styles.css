@@ -69,7 +69,8 @@
 
 /* Keep the selector compact even in Streamlit's wide layout. */
 .st-key-mode_selector {
-    width: 332px !important;
+    width: 700px !important;
+    container-type: inline-size;
     max-width: 100% !important;
 }
 .st-key-mode_selector [data-testid="stHorizontalBlock"] {
@@ -86,7 +87,7 @@
     flex: 0 0 76px !important;
 }
 .st-key-mode_selector .mode-label {
-    font-size: 16px;
+    font-size: clamp(16px, calc((100cqw - 108px) / 13.4), 44px);
     font-weight: 700;
     color: #17384c;
     white-space: nowrap;
@@ -150,7 +151,6 @@
 }
 @media (max-width: 380px) {
     .st-key-mode_selector [data-testid="stHorizontalBlock"] { gap: 8px !important; }
-    .st-key-mode_selector .mode-label { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
     .st-key-mode_selector label::before,
