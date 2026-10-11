@@ -3,14 +3,13 @@ import pandas as pd
 import pydeck as pdk
 import joblib
 import base64
+from html import escape
 import altair as alt
 
 from pathlib import Path
 
 
-# ----------------------------
 # 1. 페이지 설정
-# ----------------------------
 
 st.set_page_config(
     page_title="서울 상권 AI 추천",
@@ -19,11 +18,7 @@ st.set_page_config(
 )
 
 
-
-
-# ----------------------------
 # 2. 데이터 불러오기
-# ----------------------------
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -41,11 +36,73 @@ def load_model():
     return joblib.load(BASE_DIR / "models/final_sales_model.pkl")
 
 
+@st.cache_data
+def load_background(path):
+    mime_type = "image/png" if path.suffix == ".png" else "image/jpeg"
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
+
+@st.cache_data
+def load_styles():
+    return (BASE_DIR / "assets/styles.css").read_text()
+
+
+def show_rank_map(data, colors, tooltip):
+    """Render either ranking with the same marker sizes and map settings."""
+    data = data.dropna(subset=["위도", "경도"]).copy()
+    data = data[data["위도"].between(-90, 90) & data["경도"].between(-180, 180)]
+    if data.empty:
+        st.info("표시할 위치 정보가 없습니다.")
+        return
+    data["상권_코드_명"] = data["상권_코드_명"].map(escape)
+    data["점크기"] = data["순위"].map(lambda rank: 1200 if rank == 1 else 800 if rank <= 5 else 500)
+    data["색상"] = data["순위"].map(lambda rank: colors[0] if rank == 1 else colors[1] if rank <= 5 else colors[2])
+    st.pydeck_chart(
+        pdk.Deck(
+            layers=[pdk.Layer(
+                "ScatterplotLayer", data=data, get_position="[경도, 위도]",
+                get_radius="점크기", get_fill_color="색상", pickable=True,
+                stroked=True, get_line_color=[255, 255, 255, 180], line_width_min_pixels=1,
+            )],
+            initial_view_state=pdk.ViewState(
+                latitude=data["위도"].mean(), longitude=data["경도"].mean(), zoom=11,
+            ),
+            tooltip={"html": tooltip},
+        ),
+        width="stretch",
+    )
+
+
+def show_score_chart(data, score_column, title):
+    base = alt.Chart(data).encode(
+        x=alt.X("상권_코드_명:N", sort=data["상권_코드_명"].tolist(),
+                title=None, axis=alt.Axis(labelAngle=-45)),
+        y=alt.Y(f"{score_column}:Q", title=title, scale=alt.Scale(domain=[0, 100])),
+    )
+    chart = (
+        base.mark_area(color="#D9795F", opacity=0.15)
+        + base.mark_line(color="#D9795F", strokeWidth=3)
+        + base.mark_circle(color="#D9795F", size=110, stroke="white", strokeWidth=2).encode(
+            tooltip=[alt.Tooltip("상권_코드_명:N", title="상권"),
+                     alt.Tooltip(f"{score_column}:Q", title=title, format=".2f")],
+        )
+    ).properties(height=350)
+    st.altair_chart(chart, width="stretch")
+
+
+def show_metric_card(label, value):
+    st.markdown(
+        f'<div class="hotplace-card" style="text-align:center;">'
+        f'<div class="hotplace-label">{escape(label)}</div>'
+        f'<div class="hotplace-number">{escape(value)}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
 startup, hotplace = load_data()
 
-# ----------------------------
 # 3. 제목
-# ----------------------------
 
 st.title("🏙️ 서울 상권 AI 추천")
 
@@ -55,44 +112,40 @@ st.write(
 )
 
 
-# ----------------------------
 # 4. 메뉴 선택
-# ----------------------------
 
 st.markdown("원하는 서비스를 선택하세요.")
 
-col_owner, col_switch, col_consumer, empty = st.columns(
-    [1.15, 0.55, 1.15, 4.5],
-    gap="small"
-)
-
-with col_owner:
-    st.markdown(
-        '<div class="mode-label mode-owner">👔 사장님 모드</div>',
-        unsafe_allow_html=True
+with st.container(key="mode_selector"):
+    col_owner, col_switch, col_consumer = st.columns(
+        [116, 76, 116], gap="small", vertical_alignment="center"
     )
 
-with col_switch:
-    consumer_mode = st.toggle(
-        "모드 선택",
-        key="mode_switch",
-        label_visibility="collapsed"
-    )
+    with col_owner:
+        st.markdown(
+            '<div class="mode-label mode-owner">👔 사장님 모드</div>',
+            unsafe_allow_html=True
+        )
 
-with col_consumer:
-    st.markdown(
-        '<div class="mode-label mode-consumer">🔥 소비자 모드</div>',
-        unsafe_allow_html=True
-    )
+    with col_switch:
+        consumer_mode = st.toggle(
+            "모드 선택",
+            key="mode_switch",
+            label_visibility="collapsed"
+        )
+
+    with col_consumer:
+        st.markdown(
+            '<div class="mode-label mode-consumer">🔥 소비자 모드</div>',
+            unsafe_allow_html=True
+        )
 
 if consumer_mode:
     mode = "🔥 소비자 모드"
 else:
     mode = "👔 사장님 모드"
 
-# =====================================
 # 🎨 모드별 배경
-# =====================================
 
 if mode == "👔 사장님 모드":
     background_path = BASE_DIR / "assets" / "01.jpg"
@@ -100,133 +153,15 @@ if mode == "👔 사장님 모드":
 else:
     background_path = BASE_DIR / "assets" / "02.png"
 
-with open(background_path, "rb") as image_file:
-    encoded_image = base64.b64encode(
-        image_file.read()
-    ).decode()
-
 st.markdown(
-    f"""
-    <style>
-
-    /* =====================================
-       전체 배경
-       ===================================== */
-
-    .stApp {{
-        background-image:
-            linear-gradient(
-                rgba(255,255,255,0.72),
-                rgba(255,255,255,0.72)
-            ),
-            url("data:image/jpg;base64,{encoded_image}");
-
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }}
-
-
-    /* =====================================
-       🔥 핫플 상세 카드
-       ===================================== */
-
-        .hotplace-card {{
-        background: rgba(255, 255, 255, 0.68);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-
-        border-radius: 18px;
-        padding: 22px;
-        margin-top: 10px;
-        margin-bottom: 15px;
-
-        border: 1px solid rgba(255, 255, 255, 0.55);
-
-        box-shadow:
-            0 6px 18px rgba(0, 0, 0, 0.08);
-    }}
-
-    .hotplace-number {{
-        font-size: 30px;
-        font-weight: 800;
-        color: #17384c;
-        margin-top: 8px;
-    }}
-
-    .hotplace-label {{
-        font-size: 15px;
-        color: #334e5c;
-        font-weight: 700;
-    }}
-
-    .hotplace-info {{
-        background: rgba(230, 242, 244, 0.68);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-
-        border-radius: 16px;
-        padding: 20px;
-
-        border-left: 5px solid #2F6F73;
-        border-top: 1px solid rgba(255,255,255,0.5);
-        border-right: 1px solid rgba(255,255,255,0.5);
-        border-bottom: 1px solid rgba(255,255,255,0.5);
-    }}
-    /* =====================================
-   👔 사장님 ↔ 🔥 소비자 모드
-   ===================================== */
-
-.mode-label {{
-    font-size: 20px !important;
-    font-weight: 700 !important;
-    color: #17384c !important;
-    white-space: nowrap;
-    height: 40px;
-    line-height: 40px;
-}}
-
-.mode-owner {{
-    text-align: left;
-}}
-
-.mode-consumer {{
-    text-align: left;
-}}
-
-
-/* 가운데 스위치 공간 */
-div[data-testid="stToggle"] {{
-    height: 40px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}}
-
-
-/* ★ 실제 스위치 확대 */
-div[data-testid="stToggle"] [data-baseweb="checkbox"] {{
-    transform: scale(2.0) !important;
-    transform-origin: center center !important;
-}}
-    </style>
-    """,
-unsafe_allow_html=True
+    "<style>" + load_styles().replace("{background_url}", load_background(background_path)) + "</style>",
+    unsafe_allow_html=True,
 )
 
-  
 
-
-# ==================================================
 # 사장님 모드
-# ==================================================
 if mode == "👔 사장님 모드":
 
-    ai_model = load_model()
     st.header("👔 창업 추천")
 
     st.write(
@@ -235,9 +170,7 @@ if mode == "👔 사장님 모드":
     )
 
 
-    # ----------------------------
     # 업종 목록
-    # ----------------------------
 
     industry_list = sorted(
         startup["서비스_업종_코드_명"]
@@ -246,17 +179,17 @@ if mode == "👔 사장님 모드":
     )
 
 
-    # ----------------------------
+    if not industry_list:
+        st.info("창업 추천 데이터가 없습니다.")
+        st.stop()
+
     # 업종 선택
-    # ----------------------------
 
     selected_industry = st.selectbox(
         "창업하고 싶은 업종을 선택하세요.",
         industry_list
     )
-    # =====================================
     # 추천 상권 데이터 만들기
-    # =====================================
 
     result = startup[
         startup["서비스_업종_코드_명"]
@@ -264,10 +197,7 @@ if mode == "👔 사장님 모드":
     ].copy()
 
 
-
-    # ----------------------------
     # 추천점수 기준 정렬
-    # ----------------------------
 
     result = result.sort_values(
         "평균_창업추천점수",
@@ -275,9 +205,7 @@ if mode == "👔 사장님 모드":
     )
 
 
-    # ----------------------------
     # TOP 10
-    # ----------------------------
 
     result = result.head(10)
 
@@ -286,10 +214,13 @@ if mode == "👔 사장님 모드":
     result["순위"] = result.index + 1
 
 
-    # ----------------------------
     # AI 예상 월매출 계산
-    # ----------------------------
 
+    if result.empty:
+        st.info("선택한 업종의 추천 데이터가 없습니다.")
+        st.stop()
+
+    ai_model = load_model()
     ai_input = result[
         [
             "평균_총_유동인구",
@@ -319,18 +250,14 @@ if mode == "👔 사장님 모드":
     )
 
 
-    # ----------------------------
     # TOP 10 제목
-    # ----------------------------
 
     st.subheader(
         f"🏆 {selected_industry} 추천 상권 TOP 10"
     )
 
 
-    # ----------------------------
     # 보기 좋은 열 만들기
-    # ----------------------------
 
     display_result = result[
         [
@@ -346,11 +273,7 @@ if mode == "👔 사장님 모드":
     ].copy()
 
 
-   
-
-    # ----------------------------
     # 표 출력
-    # ----------------------------
 
     st.dataframe(
         display_result,
@@ -394,67 +317,11 @@ if mode == "👔 사장님 모드":
             )
         }
     )
-      # ----------------------------
         # 추천 상권 지도
-        # ----------------------------
-    
+
     st.subheader("🗺️ 추천 상권 TOP 10 위치")
-    
-    seller_map = result[
-            [
-                "순위",
-                "상권_코드_명",
-                "위도",
-                "경도",
-                "평균_창업추천점수",
-                "평균_점포당_월매출",
-                "AI_예상_월매출",
-                "평균_총_유동인구",
-                "평균_2030비율"
-            ]
-        ].copy()
-    
-    
-        # ----------------------------
-        # 위도/경도 없는 데이터 제거
-        # ----------------------------
-    
-    seller_map = seller_map.dropna(
-            subset=["위도", "경도"]
-        )
-    
-    
-        # ----------------------------
-        # 순위에 따라 점 크기 설정
-        # ----------------------------
-    
-        # 기본: 6~10위
-    seller_map["점크기"] = 500
-    
-        # 2~5위
-    seller_map.loc[
-            (seller_map["순위"] >= 2)
-            & (seller_map["순위"] <= 5),
-            "점크기"
-        ] = 800
-    
-        # 1위
-    seller_map.loc[
-            seller_map["순위"] == 1,
-            "점크기"
-        ] = 1200
-    
-    
-        # ----------------------------
-        # 순위에 따라 색상 + 투명도
-        # ----------------------------
-    
-    seller_map["색상"] = seller_map["순위"].apply(
-            lambda rank:
-            [30, 120, 255, 210] if rank == 1
-            else [80, 150, 255, 150] if rank <= 5
-            else [130, 190, 255, 90]
-        )
+
+    seller_map = result.copy()
     seller_map["추천점수표시"] = (
             seller_map["평균_창업추천점수"]
             .round(1)
@@ -472,39 +339,7 @@ if mode == "👔 사장님 모드":
         .round(0)
         .map("{:,.0f}원".format)
     )
-    
-        # ----------------------------
-        # 지도 점 만들기
-        # ----------------------------
-    
-    seller_layer = pdk.Layer(
-            "ScatterplotLayer",
-            data=seller_map,
-            get_position="[경도, 위도]",
-            get_radius="점크기",
-            get_fill_color="색상",
-            pickable=True,
-            stroked=True,
-            get_line_color=[255, 255, 255, 180],
-            line_width_min_pixels=1
-        )
-    
-    
-        # ----------------------------
-        # 지도 시작 위치
-        # ----------------------------
-    
-    seller_view = pdk.ViewState(
-            latitude=seller_map["위도"].mean(),
-            longitude=seller_map["경도"].mean(),
-            zoom=11
-        )
-    
-    
-        # ----------------------------
-        # 마우스를 올렸을 때 설명
-        # ----------------------------
-    
+
     seller_tooltip = {
             "html": """
             <b>🏆 순위:</b> {순위}위<br/>
@@ -514,107 +349,19 @@ if mode == "👔 사장님 모드":
             <b>🤖 AI 예상 월매출:</b> {AI매출표시}
             """
         }
-    
-        # ----------------------------
+
         # 지도 출력
-        # ----------------------------
-    
-    
-    st.pydeck_chart(
-            pdk.Deck(
-                layers=[seller_layer],
-                initial_view_state=seller_view,
-                tooltip=seller_tooltip
-            )
-        )
 
 
-    # ----------------------------
+    show_rank_map(seller_map, [[30, 120, 255, 210], [80, 150, 255, 150], [130, 190, 255, 90]], seller_tooltip["html"])
+
     # TOP 10 추천 점수 그래프
-    # ----------------------------
 
     st.subheader("📈 추천 상권 TOP 10 점수 비교")
 
-    chart_data = result[
-        [
-          "상권_코드_명",
-          "평균_창업추천점수"
-        ]
-].copy()
+    show_score_chart(result, "평균_창업추천점수", "창업 추천 점수")
 
-
-    
-
-# 아래쪽 옅은 영역
-    area = alt.Chart(chart_data).mark_area(
-        color="#D9795F",
-        opacity=0.15
-    ).encode(
-        x=alt.X(
-            "상권_코드_명:N",
-            sort=chart_data["상권_코드_명"].tolist(),
-            title=None,
-            axis=alt.Axis(labelAngle=-45)
-        ),
-        y=alt.Y(
-            "평균_창업추천점수:Q",
-            title="창업 추천 점수",
-            scale=alt.Scale(domain=[0, 100])
-        )
-    )
-
-    line = alt.Chart(chart_data).mark_line(
-        color="#D9795F",
-        strokeWidth=3
-    ).encode(
-        x=alt.X(
-            "상권_코드_명:N",
-            sort=chart_data["상권_코드_명"].tolist()
-        ),
-        y="평균_창업추천점수:Q"
-    )
-
-    points = alt.Chart(chart_data).mark_circle(
-        color="#D9795F",
-        size=110,
-        stroke="white",
-        strokeWidth=2
-    ).encode(
-        x=alt.X(
-            "상권_코드_명:N",
-            sort=chart_data["상권_코드_명"].tolist()
-        ),
-        y="평균_창업추천점수:Q",
-        tooltip=[
-            alt.Tooltip(
-                "상권_코드_명:N",
-                title="상권"
-            ),
-            alt.Tooltip(
-                "평균_창업추천점수:Q",
-                title="창업추천점수",
-                format=".2f"
-            )
-        ]
-    )
-
-    final_chart = (
-        area + line + points
-    ).properties(
-        height=350
-    )
-
-    st.altair_chart(
-        final_chart,
-        width="stretch"
-    ) 
-      
-
-      
-
-    # ----------------------------
     # 1위 추천
-    # ----------------------------
 
     if len(result) > 0:
 
@@ -667,9 +414,7 @@ if mode == "👔 사장님 모드":
             )
 
 
-        # ----------------------------
         # 추천 이유 설명
-        # ----------------------------
 
         st.subheader("💡 왜 이 상권을 추천하나요?")
 
@@ -688,7 +433,7 @@ if mode == "👔 사장님 모드":
                 f"""
 💰 **매출 경쟁력**
 
-평균 점포당 월매출은  
+평균 점포당 월매출은
 **{top['평균_점포당_월매출']:,.0f}원**입니다.
 """
             )
@@ -697,7 +442,7 @@ if mode == "👔 사장님 모드":
                 f"""
 👥 **유동인구**
 
-평균 유동인구는  
+평균 유동인구는
 **{top['평균_총_유동인구']:,.0f}명**입니다.
 """
             )
@@ -709,7 +454,7 @@ if mode == "👔 사장님 모드":
                 f"""
 🧑‍🤝‍🧑 **2030 고객 비율**
 
-20~30대 유동인구 비율은  
+20~30대 유동인구 비율은
 **{top['평균_2030비율']:.1f}%**입니다.
 """
             )
@@ -718,19 +463,16 @@ if mode == "👔 사장님 모드":
                 f"""
 🏪 **상권 안정성**
 
-평균 폐업 비율은  
+평균 폐업 비율은
 **{top['평균_폐업비율']:.1f}%**입니다.
 """
             )
 
 
-        
-        # =====================================
             # 🤖 실제 매출 vs AI 예상 매출 비교
-            # =====================================
-        
+
         st.subheader("🤖 실제 평균 월매출 vs AI 예상 월매출")
-        
+
         sales_compare = result[
                 [
                     "상권_코드_명",
@@ -738,23 +480,17 @@ if mode == "👔 사장님 모드":
                     "AI_예상_월매출"
                 ]
             ].copy()
-        
+
         sales_compare = sales_compare.set_index(
                 "상권_코드_명"
             )
-        
+
         st.bar_chart(
                 sales_compare
             )
-        
-    
-            
-              
 
 
-# ==================================================
 # 소비자 모드
-# ==================================================
 
 else:
 
@@ -774,6 +510,10 @@ else:
         placeholder="예: 2030이 많이 가는 핫플은 어디야?",
         key="consumer_ai_question_input"
     )
+    if hotplace.empty:
+        st.info("핫플 추천 데이터가 없습니다.")
+        st.stop()
+
     latest_year = hotplace["기준_년_코드"].max()
 
     latest_quarter = hotplace[
@@ -791,15 +531,13 @@ else:
         key="consumer_ai_question_button"
     ):
 
-        if consumer_question:
+        if consumer_question.strip():
 
             st.subheader("🤖 AI 분석 결과")
 
-            question = consumer_question.replace(" ", "")
+            question = "".join(consumer_question.split())
 
-            # =====================================
             # 1. 주말 유동인구 질문
-            # =====================================
 
             if (
                 "주말" in question
@@ -827,9 +565,7 @@ else:
                     )
 
 
-            # =====================================
             # 2. 야간 유동인구 질문
-            # =====================================
 
             elif (
                 "야간" in question
@@ -857,9 +593,7 @@ else:
                     )
 
 
-            # =====================================
             # 3. 2030 질문
-            # =====================================
 
             elif (
                 "2030" in question
@@ -889,9 +623,7 @@ else:
                     )
 
 
-            # =====================================
             # 4. 특정 상권 비교
-            # =====================================
 
             else:
 
@@ -901,19 +633,10 @@ else:
                     "상권_코드_명"
                 ].dropna().unique():
 
-                    # 정확한 상권명
-                    if area_name.replace(" ", "") in question:
+                    name = "".join(area_name.split())
+                    short_name = name.removesuffix("역")
+                    if name in question or (short_name and short_name in question):
                         found_areas.append(area_name)
-
-                    # '역'을 제외한 이름도 검색
-                    elif (
-                        area_name
-                        .replace("역", "")
-                        .replace(" ", "")
-                        in question
-                    ):
-                        found_areas.append(area_name)
-
 
                 if len(found_areas) > 0:
 
@@ -963,9 +686,7 @@ else:
                         )
 
 
-                # =====================================
                 # 5. 일반 핫플 질문
-                # =====================================
 
                 elif (
                     "핫플" in question
@@ -1010,11 +731,7 @@ else:
             st.warning("질문을 입력해주세요.")
 
 
-
-
-    # ----------------------------
     # 핫플 순위
-    # ----------------------------
 
     latest = latest.sort_values(
         "핫플점수",
@@ -1034,9 +751,7 @@ else:
     )
 
 
-    # ----------------------------
     # 출력 데이터
-    # ----------------------------
 
     display_hot = latest[
         [
@@ -1062,9 +777,7 @@ else:
     ]
 
 
-    # ----------------------------
     # 표 출력
-    # ----------------------------
 
     st.dataframe(
         display_hot,
@@ -1103,56 +816,13 @@ else:
             )
         }
     )
-     
-   
-    
-    # =====================================
+
+
     # 🗺️ 서울 핫플 TOP 20 위치
-    # =====================================
 
     st.subheader("🗺️ 서울 핫플 TOP 20 위치")
 
-    # 지도에 사용할 데이터
-    consumer_map = latest[
-        [
-            "순위",
-            "상권_코드_명",
-            "위도",
-            "경도",
-            "핫플점수",
-            "총_유동인구_수",
-            "2030비율"
-        ]
-    ].copy()
-
-    # 위도/경도 없는 데이터 제거
-    consumer_map = consumer_map.dropna(
-        subset=["위도", "경도"]
-    )
-
-    # 점 크기
-    consumer_map["점크기"] = 500
-
-    consumer_map.loc[
-        (consumer_map["순위"] >= 2)
-        & (consumer_map["순위"] <= 5),
-        "점크기"
-    ] = 800
-
-    consumer_map.loc[
-        consumer_map["순위"] == 1,
-        "점크기"
-    ] = 1200
-
-    # 점 색상
-    consumer_map["색상"] = consumer_map["순위"].apply(
-        lambda rank:
-        [255, 60, 60, 210]
-        if rank == 1
-        else [255, 120, 80, 150]
-        if rank <= 5
-        else [255, 180, 100, 90]
-    )
+    consumer_map = latest.copy()
 
     # 툴팁용 문자열
     consumer_map["핫플점수표시"] = (
@@ -1175,26 +845,6 @@ else:
         + "%"
     )
 
-    # 지도 점
-    consumer_layer = pdk.Layer(
-        "ScatterplotLayer",
-        data=consumer_map,
-        get_position="[경도, 위도]",
-        get_radius="점크기",
-        get_fill_color="색상",
-        pickable=True,
-        stroked=True,
-        get_line_color=[255, 255, 255, 180],
-        line_width_min_pixels=1
-    )
-
-    # 지도 시작 위치
-    consumer_view = pdk.ViewState(
-        latitude=consumer_map["위도"].mean(),
-        longitude=consumer_map["경도"].mean(),
-        zoom=11
-    )
-
     # 마우스 툴팁
     consumer_tooltip = {
         "html": """
@@ -1206,20 +856,9 @@ else:
         """
     }
 
-    # 지도 출력
-    st.pydeck_chart(
-        pdk.Deck(
-            layers=[consumer_layer],
-            initial_view_state=consumer_view,
-            tooltip=consumer_tooltip
-        ),
-        width="stretch"
-    )
+    show_rank_map(consumer_map, [[255, 60, 60, 210], [255, 120, 80, 150], [255, 180, 100, 90]], consumer_tooltip["html"])
 
-
-    # =====================================
     # 🏪 지역별 인기 업종 TOP 10
-    # =====================================
 
     st.divider()
 
@@ -1290,105 +929,15 @@ else:
     )
 
 
-    # =====================================
     # 📊 서울 핫플 TOP 20 점수 비교
-    # =====================================
 
     st.divider()
 
     st.subheader("📈 서울 핫플 TOP 20 점수 비교")
 
-    hot_chart = latest[
-    [
-        "상권_코드_명",
-        "핫플점수"
-    ]
-    ].copy()
+    show_score_chart(latest, "핫플점수", "핫플 점수")
 
-
-# ==============================
-# 아래쪽 옅은 영역
-# ==============================
-    area = alt.Chart(hot_chart).mark_area(
-        color="#D9795F",
-        opacity=0.15
-    ).encode(
-        x=alt.X(
-            "상권_코드_명:N",
-            sort=hot_chart["상권_코드_명"].tolist(),
-            title=None,
-            axis=alt.Axis(labelAngle=-45)
-        ),
-        y=alt.Y(
-            "핫플점수:Q",
-            title="핫플 점수",
-            scale=alt.Scale(domain=[0, 100])
-        )
-    )
-
-    # 선
-    line = alt.Chart(hot_chart).mark_line(
-        color="#D9795F",
-        strokeWidth=3
-    ).encode(
-        x=alt.X(
-            "상권_코드_명:N",
-            sort=hot_chart["상권_코드_명"].tolist()
-        ),
-        y="핫플점수:Q"
-    )
-
-    # 동그란 점
-    points = alt.Chart(hot_chart).mark_circle(
-        color="#D9795F",
-        size=110,
-        stroke="white",
-        strokeWidth=2
-    ).encode(
-        x=alt.X(
-            "상권_코드_명:N",
-            sort=hot_chart["상권_코드_명"].tolist()
-        ),
-        y="핫플점수:Q",
-        tooltip=[
-            alt.Tooltip(
-                "상권_코드_명:N",
-                title="상권"
-            ),
-            alt.Tooltip(
-                "핫플점수:Q",
-                title="핫플점수",
-                format=".2f"
-            )
-        ]
-    )
-
-    # 영역 + 선 + 점
-    final_hot_chart = (
-        area + line + points
-    ).properties(
-        height=350
-    )
-
-    st.altair_chart(
-        final_hot_chart,
-        width="stretch"
-    )
-    
-
-
-
-
-    
-
-   
-    
-  
-
-       # =====================================
-    # 🔥 TOP 10 핫플 상세
-    # =====================================
-
+    # TOP 10 핫플 상세
     if len(latest) > 0:
 
         detail_top10 = latest.head(10).copy()
@@ -1399,9 +948,7 @@ else:
             + detail_top10["상권_코드_명"]
         )
 
-        # ---------------------------------
         # TOP 10 역 선택
-        # ---------------------------------
 
         selected_station = st.selectbox(
             "핫플 역 선택",
@@ -1418,9 +965,7 @@ else:
         top_rank = int(top["순위"])
 
 
-        # ---------------------------------
         # 선택한 핫플 소개
-        # ---------------------------------
 
         st.markdown(
             f"""
@@ -1440,7 +985,7 @@ else:
     color:#17384c;
     margin-top:8px;
 ">
-{top['상권_코드_명']}
+{escape(top['상권_코드_명'])}
 </div>
 
 <div style="
@@ -1456,75 +1001,18 @@ else:
             unsafe_allow_html=True
         )
 
-        # =====================================
         # 핵심 지표
-        # =====================================
 
         col1, col2, col3 = st.columns(3)
 
         with col1:
-
-            card1 = f"""
-<div class="hotplace-card" style="text-align:center;">
-<div class="hotplace-label">
-🔥 핫플 점수
-</div>
-
-<div class="hotplace-number">
-{top['핫플점수']:.1f}점
-</div>
-</div>
-"""
-
-            st.markdown(
-                card1,
-                unsafe_allow_html=True
-            )
-
-
+            show_metric_card("🔥 핫플 점수", f"{top['핫플점수']:.1f}점")
         with col2:
-
-            card2 = f"""
-<div class="hotplace-card" style="text-align:center;">
-<div class="hotplace-label">
-👥 총 유동인구
-</div>
-
-<div class="hotplace-number">
-{top['총_유동인구_수']:,.0f}명
-</div>
-</div>
-"""
-
-            st.markdown(
-                card2,
-                unsafe_allow_html=True
-            )
-
-
+            show_metric_card("👥 총 유동인구", f"{top['총_유동인구_수']:,.0f}명")
         with col3:
+            show_metric_card("🧑‍🤝‍🧑 2030 비율", f"{top['2030비율']:.1f}%")
 
-            card3 = f"""
-<div class="hotplace-card" style="text-align:center;">
-<div class="hotplace-label">
-🧑‍🤝‍🧑 2030 비율
-</div>
-
-<div class="hotplace-number">
-{top['2030비율']:.1f}%
-</div>
-</div>
-"""
-
-            st.markdown(
-                card3,
-                unsafe_allow_html=True
-            )
-
-
-        # =====================================
         # 왜 여기가 핫플인가요?
-        # =====================================
 
         st.subheader("💡 왜 여기가 핫플인가요?")
 

@@ -1,0 +1,158 @@
+/* =====================================
+       전체 배경
+       ===================================== */
+
+    .stApp {
+        background-image:
+            linear-gradient(
+                rgba(255,255,255,0.72),
+                rgba(255,255,255,0.72)
+            ),
+            url("{background_url}");
+
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+
+
+    /* =====================================
+       🔥 핫플 상세 카드
+       ===================================== */
+
+        .hotplace-card {
+        background: rgba(255, 255, 255, 0.68);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+
+        border-radius: 18px;
+        padding: 22px;
+        margin-top: 10px;
+        margin-bottom: 15px;
+
+        border: 1px solid rgba(255, 255, 255, 0.55);
+
+        box-shadow:
+            0 6px 18px rgba(0, 0, 0, 0.08);
+    }
+
+    .hotplace-number {
+        font-size: 30px;
+        font-weight: 800;
+        color: #17384c;
+        margin-top: 8px;
+    }
+
+    .hotplace-label {
+        font-size: 15px;
+        color: #334e5c;
+        font-weight: 700;
+    }
+
+    .hotplace-info {
+        background: rgba(230, 242, 244, 0.68);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+
+        border-radius: 16px;
+        padding: 20px;
+
+        border-left: 5px solid #2F6F73;
+        border-top: 1px solid rgba(255,255,255,0.5);
+        border-right: 1px solid rgba(255,255,255,0.5);
+        border-bottom: 1px solid rgba(255,255,255,0.5);
+    }
+    /* =====================================
+   👔 사장님 ↔ 🔥 소비자 모드
+   ===================================== */
+
+/* Keep the selector compact even in Streamlit's wide layout. */
+.st-key-mode_selector {
+    width: 332px !important;
+    max-width: 100% !important;
+}
+.st-key-mode_selector [data-testid="stHorizontalBlock"] {
+    flex-wrap: nowrap !important;
+    gap: 12px !important;
+    align-items: center;
+}
+.st-key-mode_selector [data-testid="stColumn"] {
+    min-width: 0 !important;
+    flex: 1 1 0 !important;
+    width: auto !important;
+}
+.st-key-mode_selector [data-testid="stColumn"]:nth-child(2) {
+    flex: 0 0 76px !important;
+}
+.st-key-mode_selector .mode-label {
+    font-size: 16px;
+    font-weight: 700;
+    color: #17384c;
+    white-space: nowrap;
+    line-height: 44px;
+}
+.st-key-mode_selector .mode-owner { text-align: right; }
+.st-key-mode_selector .mode-consumer { text-align: left; }
+
+/* Draw over the native switch so its keyboard and session behavior stay intact.
+   Both current React Aria and older BaseWeb Streamlit switches are supported. */
+.st-key-mode_selector label:has(input[type="checkbox"]) {
+    position: relative;
+    display: block !important;
+    width: 76px !important;
+    height: 44px !important;
+    min-width: 76px;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 999px;
+    cursor: pointer;
+    background: linear-gradient(145deg, #ffffff, #dce5e3);
+    box-shadow: 0 5px 10px rgba(23, 56, 76, .16),
+                inset 1px 1px 2px #fff, inset -1px -1px 2px #cbd8d5;
+}
+.st-key-mode_selector label:has(input[type="checkbox"]) > div {
+    display: none !important;
+}
+.st-key-mode_selector label:has(input[type="checkbox"])::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #145c61, #27988e);
+    box-shadow: inset 0 3px 5px rgba(0, 39, 45, .45),
+                inset 0 -1px 2px rgba(255, 255, 255, .3);
+    transition: background 180ms ease;
+}
+.st-key-mode_selector label:has(input[type="checkbox"])::after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 25%, #b5f5df 0%, #49c6aa 28%, #209987 62%, #14696b 100%);
+    box-shadow: 2px 3px 5px rgba(0, 40, 44, .4),
+                inset 0 1px 2px rgba(255, 255, 255, .7);
+    transition: transform 180ms ease;
+    pointer-events: none;
+}
+.st-key-mode_selector label:has(input:checked)::before {
+    background: linear-gradient(180deg, #08796e, #36bea0);
+}
+.st-key-mode_selector label:has(input:checked)::after {
+    transform: translateX(32px);
+}
+.st-key-mode_selector label:has(input:focus-visible) {
+    outline: 3px solid #207f83;
+    outline-offset: 4px;
+}
+@media (max-width: 380px) {
+    .st-key-mode_selector [data-testid="stHorizontalBlock"] { gap: 8px !important; }
+    .st-key-mode_selector .mode-label { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .st-key-mode_selector label::before,
+    .st-key-mode_selector label::after { transition: none !important; }
+}

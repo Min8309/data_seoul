@@ -7,183 +7,157 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 
 import joblib
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[1]
 
 
-# --------------------------------
-# 1. 데이터 불러오기
-# --------------------------------
+def main():
+    (BASE_DIR / "data/processed").mkdir(parents=True, exist_ok=True)
+    (BASE_DIR / "models").mkdir(exist_ok=True)
+    # 데이터 불러오기
 
-df = pd.read_csv(
-    "data/processed/clean_mart.csv"
-)
+    df = pd.read_csv(
+        BASE_DIR / 'data/processed/clean_mart.csv'
+    )
 
-print("데이터 크기:")
-print(df.shape)
+    print("데이터 크기:")
+    print(df.shape)
 
+    # 사용할 컬럼 선택
 
-# --------------------------------
-# 2. 사용할 컬럼 선택
-# --------------------------------
+    features = [
+        "총_유동인구_수",
+        "2030비율",
+        "점포_수",
+        "폐업비율"
+    ]
 
-features = [
-    "총_유동인구_수",
-    "2030비율",
-    "점포_수",
-    "폐업비율"
-]
+    target = "점포당_월매출"
 
-target = "점포당_월매출"
+    # 필요한 데이터만 선택
 
+    model_df = df[
+        features + [target]
+    ].copy()
 
-# --------------------------------
-# 3. 필요한 데이터만 선택
-# --------------------------------
+    # 결측치 제거
+    model_df = model_df.dropna()
 
-model_df = df[
-    features + [target]
-].copy()
+    print("\n모델 학습 데이터 크기:")
+    print(model_df.shape)
 
+    # X, y 나누기
 
-# 결측치 제거
-model_df = model_df.dropna()
+    X = model_df[features]
 
+    y = model_df[target]
 
-print("\n모델 학습 데이터 크기:")
-print(model_df.shape)
+    # 학습용 / 테스트용 데이터 분리
 
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.2,
+        random_state=42
+    )
 
-# --------------------------------
-# 4. X, y 나누기
-# --------------------------------
+    print("\n학습 데이터:")
+    print(X_train.shape)
 
-X = model_df[features]
+    print("테스트 데이터:")
+    print(X_test.shape)
 
-y = model_df[target]
+    # RandomForest 모델 만들기
 
+    model = RandomForestRegressor(
+        n_estimators=100,
+        random_state=42,
+        n_jobs=-1
+    )
 
-# --------------------------------
-# 5. 학습용 / 테스트용 데이터 분리
-# --------------------------------
+    # 모델 학습
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42
-)
+    print("\n모델 학습 시작...")
 
+    model.fit(
+        X_train,
+        y_train
+    )
 
-print("\n학습 데이터:")
-print(X_train.shape)
+    print("모델 학습 완료!")
 
-print("테스트 데이터:")
-print(X_test.shape)
+    # 예측
 
+    pred = model.predict(
+        X_test
+    )
 
-# --------------------------------
-# 6. RandomForest 모델 만들기
-# --------------------------------
+    # 성능 평가
 
-model = RandomForestRegressor(
-    n_estimators=100,
-    random_state=42,
-    n_jobs=-1
-)
+    mae = mean_absolute_error(
+        y_test,
+        pred
+    )
 
+    rmse = mean_squared_error(
+        y_test,
+        pred
+    ) ** 0.5
 
-# --------------------------------
-# 7. 모델 학습
-# --------------------------------
+    r2 = r2_score(
+        y_test,
+        pred
+    )
 
-print("\n모델 학습 시작...")
+    print("\n============================")
+    print("모델 평가 결과")
+    print("============================")
 
-model.fit(
-    X_train,
-    y_train
-)
+    print(
+        f"MAE : {mae:,.0f}원"
+    )
 
-print("모델 학습 완료!")
+    print(
+        f"RMSE : {rmse:,.0f}원"
+    )
 
+    print(
+        f"R² : {r2:.4f}"
+    )
 
-# --------------------------------
-# 8. 예측
-# --------------------------------
+    # 변수 중요도 확인
 
-pred = model.predict(
-    X_test
-)
+    importance = pd.DataFrame(
+        {
+            "변수": features,
+            "중요도": model.feature_importances_
+        }
+    )
 
+    importance = importance.sort_values(
+        "중요도",
+        ascending=False
+    )
 
-# --------------------------------
-# 9. 성능 평가
-# --------------------------------
+    print("\n변수 중요도:")
+    print(importance)
 
-mae = mean_absolute_error(
-    y_test,
-    pred
-)
+    # 모델 저장
 
-rmse = mean_squared_error(
-    y_test,
-    pred
-) ** 0.5
+    joblib.dump(
+        model,
+        BASE_DIR / 'models/random_forest_sales.pkl'
+    )
 
-r2 = r2_score(
-    y_test,
-    pred
-)
+    print(
+        "\n모델 저장 완료:"
+    )
 
-
-print("\n============================")
-print("모델 평가 결과")
-print("============================")
-
-print(
-    f"MAE : {mae:,.0f}원"
-)
-
-print(
-    f"RMSE : {rmse:,.0f}원"
-)
-
-print(
-    f"R² : {r2:.4f}"
-)
-
-
-# --------------------------------
-# 10. 변수 중요도 확인
-# --------------------------------
-
-importance = pd.DataFrame(
-    {
-        "변수": features,
-        "중요도": model.feature_importances_
-    }
-)
-
-importance = importance.sort_values(
-    "중요도",
-    ascending=False
-)
-
-print("\n변수 중요도:")
-print(importance)
+    print(
+        "models/random_forest_sales.pkl"
+    )
 
 
-# --------------------------------
-# 11. 모델 저장
-# --------------------------------
-
-joblib.dump(
-    model,
-    "models/random_forest_sales.pkl"
-)
-
-print(
-    "\n모델 저장 완료:"
-)
-
-print(
-    "models/random_forest_sales.pkl"
-)
+if __name__ == "__main__":
+    main()

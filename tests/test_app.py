@@ -55,6 +55,36 @@ class AppSmokeTests(unittest.TestCase):
         expected = f'{year}년 {quarter}분기 핫플 2위'
         self.assertTrue(any(expected in item.value for item in app.markdown))
 
+    def test_whitespace_question_is_empty(self):
+        app = self.app()
+        app.toggle(key='mode_switch').set_value(True).run()
+        app.text_input(key='consumer_ai_question_input').set_value(' \t ')
+        app.button(key='consumer_ai_question_button').click().run()
+        self.assertFalse(app.exception)
+        self.assertTrue(app.warning)
+
+    def test_missing_coordinates_do_not_crash_either_mode(self):
+        from unittest.mock import patch
+        import streamlit as st
+        original_read = pd.read_csv
+
+        def without_coordinates(path, *args, **kwargs):
+            data = original_read(path, *args, **kwargs)
+            if Path(path).name in {'startup_ranking_map.csv', 'hotplace_score_map.csv'}:
+                data[['위도', '경도']] = np.nan
+            return data
+
+        st.cache_data.clear()
+        try:
+            with patch('pandas.read_csv', side_effect=without_coordinates):
+                app = self.app()
+                self.assertTrue(any('위치 정보' in item.value for item in app.info))
+                app.toggle(key='mode_switch').set_value(True).run()
+                self.assertFalse(app.exception)
+                self.assertTrue(any('위치 정보' in item.value for item in app.info))
+        finally:
+            st.cache_data.clear()
+
     def test_launch_from_another_directory(self):
         original = Path.cwd()
         try:

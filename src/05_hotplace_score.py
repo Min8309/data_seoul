@@ -1,165 +1,141 @@
 import pandas as pd
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[1]
 
 
-# ----------------------------
-# 1. 점수 데이터 불러오기
-# ----------------------------
+def main():
+    (BASE_DIR / "data/processed").mkdir(parents=True, exist_ok=True)
+    (BASE_DIR / "models").mkdir(exist_ok=True)
+    # 점수 데이터 불러오기
 
-df = pd.read_csv(
-    "data/processed/scored_mart_v2.csv"
-)
+    df = pd.read_csv(
+        BASE_DIR / 'data/processed/scored_mart_v2.csv'
+    )
 
-print("=== 데이터 불러오기 완료 ===")
-print(df.shape)
+    print("=== 데이터 불러오기 완료 ===")
+    print(df.shape)
 
+    # 상권 단위 데이터 만들기
+    # 같은 상권/분기에 업종이 여러 개 있으므로
+    # 유동인구 정보는 한 번만 남김
 
-# ----------------------------
-# 2. 상권 단위 데이터 만들기
-# ----------------------------
-# 같은 상권/분기에 업종이 여러 개 있으므로
-# 유동인구 정보는 한 번만 남김
-
-hot = df[
-    [
-        "기준_년_코드",
-        "기준_분기_코드",
-        "상권_코드",
-        "상권_코드_명",
-        "총_유동인구_수",
-        "2030비율",
-        "시간대_17_21_유동인구_수",
-        "시간대_21_24_유동인구_수",
-        "금요일_유동인구_수",
-        "토요일_유동인구_수",
-        "일요일_유동인구_수"
-    ]
-].drop_duplicates()
-
-
-print("\n=== 상권 단위 데이터 ===")
-print(hot.shape)
-
-
-# ----------------------------
-# 3. 주말 유동인구 계산
-# ----------------------------
-
-hot["주말_유동인구_수"] = (
-    hot["토요일_유동인구_수"]
-    + hot["일요일_유동인구_수"]
-)
-
-
-# ----------------------------
-# 4. 야간 유동인구 계산
-# ----------------------------
-
-hot["야간_유동인구_수"] = (
-    hot["시간대_17_21_유동인구_수"]
-    + hot["시간대_21_24_유동인구_수"]
-)
-
-
-# ----------------------------
-# 5. 분위수 점수 함수
-# ----------------------------
-
-def percentile_score(series):
-    return series.rank(pct=True) * 100
-
-
-# ----------------------------
-# 6. 각각 점수 계산
-# ----------------------------
-
-hot["전체유동점수"] = percentile_score(
-    hot["총_유동인구_수"]
-)
-
-hot["2030핫플점수"] = percentile_score(
-    hot["2030비율"]
-)
-
-hot["주말점수"] = percentile_score(
-    hot["주말_유동인구_수"]
-)
-
-hot["야간점수"] = percentile_score(
-    hot["야간_유동인구_수"]
-)
-
-
-# ----------------------------
-# 7. 최종 핫플 점수
-# ----------------------------
-
-hot["핫플점수"] = (
-    hot["전체유동점수"] * 0.35
-    + hot["2030핫플점수"] * 0.30
-    + hot["주말점수"] * 0.20
-    + hot["야간점수"] * 0.15
-)
-
-
-# ----------------------------
-# 8. 최신 분기만 확인
-# ----------------------------
-
-latest_year = hot["기준_년_코드"].max()
-
-latest_quarter = hot[
-    hot["기준_년_코드"] == latest_year
-]["기준_분기_코드"].max()
-
-
-latest = hot[
-    (hot["기준_년_코드"] == latest_year)
-    &
-    (hot["기준_분기_코드"] == latest_quarter)
-].copy()
-
-
-# ----------------------------
-# 9. 핫플 순위
-# ----------------------------
-
-ranking = latest.sort_values(
-    "핫플점수",
-    ascending=False
-)
-
-
-print("\n=== 최신 분기 ===")
-print(latest_year, "년", latest_quarter, "분기")
-
-
-print("\n=== 핫플 TOP 20 ===")
-
-print(
-    ranking[
+    hot = df[
         [
+            "기준_년_코드",
+            "기준_분기_코드",
+            "상권_코드",
             "상권_코드_명",
             "총_유동인구_수",
             "2030비율",
-            "주말_유동인구_수",
-            "야간_유동인구_수",
-            "핫플점수"
+            "시간대_17_21_유동인구_수",
+            "시간대_21_24_유동인구_수",
+            "토요일_유동인구_수",
+            "일요일_유동인구_수"
         ]
-    ]
-    .head(20)
-    .to_string(index=False)
-)
+    ].drop_duplicates()
+
+    print("\n=== 상권 단위 데이터 ===")
+    print(hot.shape)
+
+    # 주말 유동인구 계산
+
+    hot["주말_유동인구_수"] = (
+        hot["토요일_유동인구_수"]
+        + hot["일요일_유동인구_수"]
+    )
+
+    # 야간 유동인구 계산
+
+    hot["야간_유동인구_수"] = (
+        hot["시간대_17_21_유동인구_수"]
+        + hot["시간대_21_24_유동인구_수"]
+    )
+
+    # 분위수 점수 함수
+
+    def percentile_score(series):
+        return series.rank(pct=True) * 100
+
+    # 각각 점수 계산
+
+    hot["전체유동점수"] = percentile_score(
+        hot["총_유동인구_수"]
+    )
+
+    hot["2030핫플점수"] = percentile_score(
+        hot["2030비율"]
+    )
+
+    hot["주말점수"] = percentile_score(
+        hot["주말_유동인구_수"]
+    )
+
+    hot["야간점수"] = percentile_score(
+        hot["야간_유동인구_수"]
+    )
+
+    # 최종 핫플 점수
+
+    hot["핫플점수"] = (
+        hot["전체유동점수"] * 0.35
+        + hot["2030핫플점수"] * 0.30
+        + hot["주말점수"] * 0.20
+        + hot["야간점수"] * 0.15
+    )
+
+    # 최신 분기만 확인
+
+    latest_year = hot["기준_년_코드"].max()
+
+    latest_quarter = hot[
+        hot["기준_년_코드"] == latest_year
+    ]["기준_분기_코드"].max()
+
+    latest = hot[
+        (hot["기준_년_코드"] == latest_year)
+        &
+        (hot["기준_분기_코드"] == latest_quarter)
+    ].copy()
+
+    # 핫플 순위
+
+    ranking = latest.sort_values(
+        "핫플점수",
+        ascending=False
+    )
+
+    print("\n=== 최신 분기 ===")
+    print(latest_year, "년", latest_quarter, "분기")
+
+    print("\n=== 핫플 TOP 20 ===")
+
+    print(
+        ranking[
+            [
+                "상권_코드_명",
+                "총_유동인구_수",
+                "2030비율",
+                "주말_유동인구_수",
+                "야간_유동인구_수",
+                "핫플점수"
+            ]
+        ]
+        .head(20)
+        .to_string(index=False)
+    )
+
+    # 저장
+
+    hot.to_csv(
+        BASE_DIR / 'data/processed/hotplace_score.csv',
+        index=False,
+        encoding="utf-8-sig"
+    )
+
+    print("\n=== 저장 완료 ===")
+    print("data/processed/hotplace_score.csv")
 
 
-# ----------------------------
-# 10. 저장
-# ----------------------------
-
-hot.to_csv(
-    "data/processed/hotplace_score.csv",
-    index=False,
-    encoding="utf-8-sig"
-)
-
-print("\n=== 저장 완료 ===")
-print("data/processed/hotplace_score.csv")
+if __name__ == "__main__":
+    main()
