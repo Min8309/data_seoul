@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import pydeck as pdk
-import joblib
 import base64
 from html import escape
 import altair as alt
@@ -23,17 +22,27 @@ st.set_page_config(
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-@st.cache_data
-def load_data():
-    return (
-        pd.read_csv(BASE_DIR / "data/processed/startup_ranking_map.csv"),
-        pd.read_csv(BASE_DIR / "data/processed/hotplace_score_map.csv"),
-    )
+@st.cache_data(show_spinner=False)
+def load_startup_data():
+    return pd.read_csv(BASE_DIR / "data/processed/startup_ranking_map.csv")
+
+
+@st.cache_data(show_spinner=False)
+def load_hotplace_data():
+    return pd.read_csv(BASE_DIR / "data/processed/hotplace_score_map.csv")
 
 
 @st.cache_resource
-def load_model():
+def load_model(model_version=None):
+    import joblib
+
     return joblib.load(BASE_DIR / "models/final_sales_model.pkl")
+
+
+@st.cache_data(show_spinner=False, max_entries=128)
+def predict_sales(ai_input, model_version):
+    """Reuse predictions until the input or saved model changes."""
+    return load_model(model_version).predict(ai_input)
 
 
 @st.cache_data
@@ -99,8 +108,6 @@ def show_metric_card(label, value):
         unsafe_allow_html=True,
     )
 
-
-startup, hotplace = load_data()
 
 # 3. 제목
 
@@ -170,6 +177,9 @@ if mode == "👔 사장님 모드":
     )
 
 
+    with st.spinner("창업 추천 데이터를 불러오는 중입니다…"):
+        startup = load_startup_data()
+
     # 업종 목록
 
     industry_list = sorted(
@@ -220,7 +230,6 @@ if mode == "👔 사장님 모드":
         st.info("선택한 업종의 추천 데이터가 없습니다.")
         st.stop()
 
-    ai_model = load_model()
     ai_input = result[
         [
             "평균_총_유동인구",
@@ -245,9 +254,9 @@ if mode == "👔 사장님 모드":
 
 
     # AI 예상 월매출 계산
-    result["AI_예상_월매출"] = ai_model.predict(
-        ai_input
-    )
+    model_version = (BASE_DIR / "models/final_sales_model.pkl").stat().st_mtime_ns
+    with st.spinner("예상 월매출을 계산하는 중입니다…"):
+        result["AI_예상_월매출"] = predict_sales(ai_input, model_version)
 
 
     # TOP 10 제목
@@ -510,6 +519,9 @@ else:
         placeholder="예: 2030이 많이 가는 핫플은 어디야?",
         key="consumer_ai_question_input"
     )
+    with st.spinner("핫플 데이터를 불러오는 중입니다…"):
+        hotplace = load_hotplace_data()
+
     if hotplace.empty:
         st.info("핫플 추천 데이터가 없습니다.")
         st.stop()
@@ -877,6 +889,7 @@ else:
         key="consumer_area_select"
     )
 
+    startup = load_startup_data()
     area_shop = startup[
         startup["상권_코드_명"] == selected_area
     ].copy()
