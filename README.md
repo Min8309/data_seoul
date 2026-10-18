@@ -238,3 +238,21 @@ models/final_sales_model.pkl
 - 발표자료에 명시된 코드 대조 기준: `b7bc901`
 - 발표자료에 명시된 근거: 원본·가공 CSV 실측 및 기존 `q4_prediction_result.csv` 재계산
 - 작성자 표기: PARK MIN SUN
+
+## Streamlit 로딩 최적화
+
+- 사장님 모드에서는 창업 CSV만 먼저 읽고, 핫플 CSV는 소비자 모드에 진입할 때 읽습니다.
+- 업종별 매출 예측 결과를 캐시해 동일 입력의 화면 재실행에서 추론을 반복하지 않습니다.
+- 모델 파일 수정 시각이 바뀌면 모델과 예측 캐시를 새로 계산합니다.
+- 페이지 제목과 메뉴를 데이터 로딩보다 먼저 표시하고 로딩 상태를 안내합니다.
+
+Community Cloud의 절전 해제 대기는 앱 코드가 실행되기 전 단계이므로 이 최적화로 제거되지 않습니다. 캐시는 실행 중인 앱의 반복 작업을 줄이며, 서버 절전·재시작 시에는 다시 생성될 수 있습니다. 발표나 시연 전에는 실제 앱을 열어 절전 해제와 첫 모델 로딩이 끝났는지 확인하세요.
+
+로컬 실행:
+
+```bash
+python -m pip install -r requirements.txt
+streamlit run src/app.py
+```
+
+Community Cloud의 실행 파일은 `src/app.py`로 지정합니다. 로딩 회귀 검증은 `python -m unittest discover -s tests -p 'test_*.py'`로 실행할 수 있습니다.
