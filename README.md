@@ -5,9 +5,14 @@
 **Where U Go**는 방문 목적과 창업 목적에 따라 서울 상권을 다르게 비교합니다. 방문자에게는 젊은층·주말·야간 활동을 반영한 핫플 순위를, 창업자에게는 업종별 추천 상권과 예상 월매출을 제공합니다.
 
 추천 순위는 **규칙 기반 상대점수**, 예상 월매출은 **Random Forest 회귀모델**로 계산합니다.
+---
+[where_u_go.pptx](https://github.com/user-attachments/files/33614528/where_u_go.pptx)
 
-
+[where_u_go.pptx.pdf](https://github.com/user-attachments/files/33614524/where_u_go.pptx.pdf)
 ----
+https://dataseoul.streamlit.app/
+----
+
 <img width="1136" height="720" alt="boss9" src="https://github.com/user-attachments/assets/f3e3c526-dfa0-4741-96ea-101d0a21ae81" />
 
 ## 주요 기능
