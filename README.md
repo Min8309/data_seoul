@@ -1,4 +1,4 @@
-<img width="1136" height="720" alt="boss9" src="https://github.com/user-attachments/assets/6495350a-5ae9-494e-bb63-feae9a099db4" /># 서울, 어디서 놀고 어디서 벌까? 🗺️
+# 서울, 어디서 놀고 어디서 벌까? 🗺️
 
 > 서울 상권 공공데이터를 방문·창업 의사결정 서비스로 연결하는 데이터 분석 및 웹 서비스 프로젝트
 
@@ -6,7 +6,7 @@
 
 추천 순위는 **규칙 기반 상대점수**, 예상 월매출은 **Random Forest 회귀모델**로 계산합니다.
 
-이 문서는 발표자료 `where_u_go.pptx`를 바탕으로 작성했습니다. 아래 데이터 규모와 검증 결과는 발표자료에 제시된 기준이며, 이번 README 작성 과정에서 데이터 처리나 모델 평가를 다시 실행한 결과가 아닙니다.
+
 ----
 <img width="1136" height="720" alt="boss9" src="https://github.com/user-attachments/assets/f3e3c526-dfa0-4741-96ea-101d0a21ae81" />
 
