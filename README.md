@@ -1,3 +1,4 @@
+[KingCapture_2026-10-21_12-48-24_편집.webm](https://github.com/user-attachments/assets/4d7898b7-7e07-4708-8501-02cecbd4a37c)
 # 서울, 어디서 놀고 어디서 벌까? 🗺️
 
 > 서울 상권 공공데이터를 방문·창업 의사결정 서비스로 연결하는 데이터 분석 및 웹 서비스 프로젝트
@@ -13,7 +14,7 @@
 https://dataseoul.streamlit.app/
 ----
 
-<img width="1136" height="720" alt="boss9" src="https://github.com/user-attachments/assets/f3e3c526-dfa0-4741-96ea-101d0a21ae81" />
+[KingCapture_2026-10-21_12-48-24_편집.webm](https://github.com/user-attachments/assets/fa4a778c-25f1-40f6-819a-712b0f5e1d9c)
 
 ## 주요 기능
 
