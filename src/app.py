@@ -45,7 +45,7 @@ def predict_sales(ai_input, model_version):
 
 
 @st.cache_data
-def load_styles():
+def load_styles(style_version=None):
     return (BASE_DIR / "assets/styles.css").read_text()
 
 
@@ -105,7 +105,7 @@ def show_metric_card(label, value):
 
 # Dashboard header
 header = st.container()
-st.markdown("<style>" + load_styles() + "</style>", unsafe_allow_html=True)
+st.markdown("<style>" + load_styles((BASE_DIR / "assets/styles.css").stat().st_mtime_ns) + "</style>", unsafe_allow_html=True)
 
 def navigate_to(consumer, tab):
     """Switch both the service and the selected analysis tab in one click."""
