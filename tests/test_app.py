@@ -86,6 +86,23 @@ class AppSmokeTests(unittest.TestCase):
         finally:
             st.cache_data.clear()
 
+    def test_sidebar_navigation_and_inline_industry_filter(self):
+        app = self.app()
+        self.assertEqual(len(app.sidebar.selectbox), 0)
+        self.assertEqual(app.selectbox(key='industry_filter').label,
+                         '창업하고 싶은 업종을 선택하세요.')
+        for consumer, key, tabs in [
+            (True, 'consumer_tabs', ['상권 지도', '지역별 업종', '상세 데이터', '개요 요약']),
+            (False, 'owner_tabs', ['상권 지도', '지표 비교', '상세 데이터', '개요 요약']),
+        ]:
+            for tab in tabs:
+                app.button(key=f'nav_{key}_{tab}').click().run()
+                self.assertFalse(app.exception, [e.message for e in app.exception])
+                self.assertEqual(app.toggle(key='mode_switch').value, consumer)
+                self.assertEqual(app.session_state[key], tab)
+        app.selectbox(key='industry_filter').select_index(-1).run()
+        self.assertFalse(app.exception)
+
     def test_launch_from_another_directory(self):
         original = Path.cwd()
         try:

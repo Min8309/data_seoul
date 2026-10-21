@@ -107,15 +107,45 @@ def show_metric_card(label, value):
 header = st.container()
 st.markdown("<style>" + load_styles() + "</style>", unsafe_allow_html=True)
 
+def navigate_to(consumer, tab):
+    """Switch both the service and the selected analysis tab in one click."""
+    st.session_state.mode_switch = consumer
+    st.session_state["consumer_tabs" if consumer else "owner_tabs"] = tab
+
+
 with st.sidebar:
     st.markdown("### 🏙️ WHERE U GO")
     st.caption("서울 상권 탐색 대시보드")
     st.divider()
-    if st.button("↺ 필터 초기화", use_container_width=True):
-        for widget_key in ["industry_filter", "consumer_area_select", "hotplace_station_select", "consumer_ai_question_input"]:
-            st.session_state.pop(widget_key, None)
-    st.markdown("#### 탐색 조건")
-    st.caption("서비스 모드에 맞는 분석 조건을 선택하세요.")
+    for consumer, heading, items in [
+        (False, "👔 창업 추천", [
+            ("개요 요약", "추천 요약 · AI 매출 예측"),
+            ("상권 지도", "추천 상권 지도"),
+            ("지표 비교", "창업 추천 점수 비교"),
+            ("상세 데이터", "창업 추천 TOP 10 데이터"),
+        ]),
+        (True, "🔥 서울 핫플 추천", [
+            ("개요 요약", "핫플 요약 · 상세 분석"),
+            ("상권 지도", "서울 핫플 지도"),
+            ("지역별 업종", "지역별 인기 업종"),
+            ("상세 데이터", "핫플 TOP 20 데이터"),
+        ]),
+    ]:
+        st.markdown(f"#### {heading}")
+        for tab, label in items:
+            tab_key = "consumer_tabs" if consumer else "owner_tabs"
+            active = (
+                st.session_state.get("mode_switch", False) == consumer
+                and st.session_state.get(tab_key, "개요 요약") == tab
+            )
+            st.button(
+                label, key=f"nav_{tab_key}_{tab}",
+                type="primary" if active else "tertiary",
+                use_container_width=True,
+                on_click=navigate_to, args=(consumer, tab),
+            )
+    st.divider()
+    st.caption("메뉴를 누르면 해당 모드와 분석 탭이 함께 열립니다.")
 
 # 4. 메뉴 선택
 
@@ -201,7 +231,7 @@ if mode == "👔 사장님 모드":
 
     # 업종 선택
 
-    selected_industry = st.sidebar.selectbox(
+    selected_industry = st.selectbox(
         "창업하고 싶은 업종을 선택하세요.",
         industry_list,
         key="industry_filter"
@@ -274,7 +304,8 @@ if mode == "👔 사장님 모드":
         with col:
             show_metric_card(label, value)
     summary_tab, map_tab, compare_tab, data_tab = st.tabs(
-        ["개요 요약", "상권 지도", "지표 비교", "상세 데이터"]
+        ["개요 요약", "상권 지도", "지표 비교", "상세 데이터"],
+        key="owner_tabs", on_change="rerun",
     )
 
     with data_tab:
@@ -787,7 +818,8 @@ else:
         with col:
             show_metric_card(label, value)
     summary_tab, map_tab, compare_tab, data_tab = st.tabs(
-        ["개요 요약", "상권 지도", "지역별 업종", "상세 데이터"]
+        ["개요 요약", "상권 지도", "지역별 업종", "상세 데이터"],
+        key="consumer_tabs", on_change="rerun",
     )
 
     with data_tab:
