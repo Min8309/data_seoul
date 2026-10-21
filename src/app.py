@@ -7,19 +7,19 @@ import altair as alt
 from pathlib import Path
 
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+LOGO_PATH = BASE_DIR / "assets/logo.png"
+
 # 1. 페이지 설정
 
 st.set_page_config(
-    page_title="서울 상권 AI 추천",
-    page_icon="🏙️",
+    page_title="서울 어디가 | 서울 상권 탐색",
+    page_icon=str(LOGO_PATH) if LOGO_PATH.is_file() else None,
     layout="wide"
 )
 
 
 # 2. 데이터 불러오기
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 @st.cache_data(show_spinner=False)
 def load_startup_data():
@@ -114,7 +114,9 @@ def navigate_to(consumer, tab):
 
 
 with st.sidebar:
-    st.markdown("### 🏙️ WHERE U GO")
+    if LOGO_PATH.is_file():
+        st.image(str(LOGO_PATH), width="stretch")
+    st.markdown("### 서울 어디가")
     st.caption("서울 상권 탐색 대시보드")
     st.divider()
     for consumer, heading, items in [
