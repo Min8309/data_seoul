@@ -2,6 +2,7 @@
 .stApp {
     --accent: #2563EB; --ink: #0F172A; --canvas: #F8FAFC;
     --soft: #EFF6FF; --card-radius: 14px; --line: #E2E8F0;
+    --header-content-top: 6rem;
     background: var(--canvas); color: var(--ink);
 }
 .stApp:has(.theme-consumer) {
@@ -46,9 +47,25 @@
 /* Keep the first line below Streamlit's fixed toolbar (about 3.75rem). */
 [data-testid="stMainBlockContainer"].block-container {
     max-width: 1440px;
-    padding-top: calc(6rem + env(safe-area-inset-top, 0px)) !important;
+    padding-top: calc(var(--header-content-top) + env(safe-area-inset-top, 0px)) !important;
     padding-bottom: 3rem;
 }
+/* Align the compact brand inside the main hero's vertical range. */
+[data-testid="stSidebarHeader"] {
+    height: 3.75rem; min-height: 3.75rem; margin-bottom: 0;
+}
+[data-testid="stSidebarUserContent"] {
+    padding-top: calc(var(--header-content-top) - 3.75rem + env(safe-area-inset-top, 0px));
+}
+.st-key-sidebar_brand { padding: 8px 0; }
+.st-key-sidebar_brand [data-testid="stHorizontalBlock"] {
+    flex-wrap: nowrap; align-items: center;
+}
+.st-key-sidebar_brand [data-testid="stColumn"] { min-width: 0; }
+.st-key-sidebar_brand [data-testid="stImage"] img {
+    width: 64px; max-width: 100%; height: auto; max-height: 64px; object-fit: contain;
+}
+.st-key-sidebar_brand p { margin-bottom: 4px; }
 [data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid #E2E8F0; }
 .brand { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: 2px; line-height: 1.6; overflow-wrap: anywhere; margin-bottom: 12px; }
 h1 { letter-spacing: -1.4px; }
@@ -139,10 +156,11 @@ h2, h3 { letter-spacing: -.5px; }
     .st-key-mode_selector button:hover { transform: none; }
 }
 @media (max-width: 640px) {
+    .stApp { --header-content-top: 5.5rem; }
     [data-testid="stMainBlockContainer"].block-container {
         padding-left: 1rem;
         padding-right: 1rem;
-        padding-top: calc(5.5rem + env(safe-area-inset-top, 0px)) !important;
+        padding-top: calc(var(--header-content-top) + env(safe-area-inset-top, 0px)) !important;
     }
     .dashboard-hero { padding-left: 16px; }
     .stApp:has(.theme-consumer) .dashboard-hero,
