@@ -13,7 +13,7 @@
     border-left: 4px solid var(--accent); padding: 10px 0 14px 24px;
     margin-bottom: 24px;
 }
-.dashboard-hero h1 { color: var(--ink); font-size: clamp(28px, 3.1vw, 42px); line-height: 1.3; }
+.dashboard-hero h1 { margin: 0 0 12px; padding: 0; overflow-wrap: anywhere; word-break: keep-all; color: var(--ink); font-size: clamp(28px, 3.1vw, 42px); line-height: 1.3; }
 .dashboard-hero p { color: #64748B; font-size: 15px; line-height: 1.7; }
 .mode-badge { display: inline-block; background: var(--soft); color: var(--accent); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; }
 .stApp:has(.theme-consumer) .dashboard-hero {
@@ -27,9 +27,14 @@
 .stApp:has(.theme-consumer) .hotplace-card { border-top: 3px solid #10B981; }
 .stApp:has(.theme-consumer) [data-testid="stBaseButton-secondary"] { border-color: #A7CDBB; color: #047857; }
 
-.block-container { max-width: 1440px; padding-top: 2.5rem; padding-bottom: 3rem; }
+/* Keep the first line below Streamlit's fixed toolbar (about 3.75rem). */
+[data-testid="stMainBlockContainer"].block-container {
+    max-width: 1440px;
+    padding-top: calc(3.75rem + 1.5rem + env(safe-area-inset-top, 0px));
+    padding-bottom: 3rem;
+}
 [data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid #E2E8F0; }
-.brand { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: 2px; margin-bottom: 12px; }
+.brand { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: 2px; line-height: 1.6; overflow-wrap: anywhere; margin-bottom: 12px; }
 h1 { letter-spacing: -1.4px; }
 h2, h3 { letter-spacing: -.5px; }
 .hotplace-card, .hotplace-info, [data-testid="stMetric"] {
@@ -51,7 +56,13 @@ h2, h3 { letter-spacing: -.5px; }
 .mode-owner { text-align: right; }
 .mode-consumer { text-align: left; }
 @media (max-width: 640px) {
-    .block-container { padding: 1.5rem 1rem; }
+    [data-testid="stMainBlockContainer"].block-container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+        padding-top: calc(3.75rem + 1.25rem + env(safe-area-inset-top, 0px));
+    }
+    .dashboard-hero { padding-left: 16px; }
+    .stApp:has(.theme-consumer) .dashboard-hero { padding: 20px; }
     .hotplace-card { padding: 18px; margin-bottom: 8px; }
     [data-baseweb="tab-list"] { gap: 14px; }
     .mode-label { font-size: 12px; }
