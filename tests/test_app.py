@@ -31,7 +31,7 @@ class AppSmokeTests(unittest.TestCase):
 
     def test_consumer_rankings_and_question_branches(self):
         app = self.app()
-        app.toggle(key='mode_switch').set_value(True).run()
+        app.button(key='mode_consumer_button').click().run()
         self.assertFalse(app.exception)
         ranking = next(table.value for table in app.dataframe if '핫플 점수' in table.value.columns)
         self.assertEqual(len(ranking), 20)
@@ -47,7 +47,7 @@ class AppSmokeTests(unittest.TestCase):
 
     def test_dynamic_period_and_detail_selection(self):
         app = self.app()
-        app.toggle(key='mode_switch').set_value(True).run()
+        app.button(key='mode_consumer_button').click().run()
         app.selectbox(key='hotplace_station_select').select_index(1).run()
         self.assertFalse(app.exception)
         data = pd.read_csv(ROOT / 'data/processed/hotplace_score_map.csv')
@@ -58,7 +58,7 @@ class AppSmokeTests(unittest.TestCase):
 
     def test_whitespace_question_is_empty(self):
         app = self.app()
-        app.toggle(key='mode_switch').set_value(True).run()
+        app.button(key='mode_consumer_button').click().run()
         app.text_input(key='consumer_ai_question_input').set_value(' \t ')
         app.button(key='consumer_ai_question_button').click().run()
         self.assertFalse(app.exception)
@@ -80,7 +80,7 @@ class AppSmokeTests(unittest.TestCase):
             with patch('pandas.read_csv', side_effect=without_coordinates):
                 app = self.app()
                 self.assertTrue(any('위치 정보' in item.value for item in app.info))
-                app.toggle(key='mode_switch').set_value(True).run()
+                app.button(key='mode_consumer_button').click().run()
                 self.assertFalse(app.exception)
                 self.assertTrue(any('위치 정보' in item.value for item in app.info))
         finally:
@@ -95,7 +95,7 @@ class AppSmokeTests(unittest.TestCase):
             (True, 'consumer_tabs', ['상권 지도', '지역별 업종', '상세 데이터', '개요 요약']),
             (False, 'owner_tabs', ['상권 지도', '지표 비교', '상세 데이터', '개요 요약']),
         ]:
-            app.toggle(key='mode_switch').set_value(consumer).run()
+            app.button(key='mode_consumer_button' if consumer else 'mode_owner_button').click().run()
             self.assertFalse(app.exception)
             nav_buttons = [button for button in app.sidebar.button
                            if button.key.startswith('nav_')]
@@ -105,7 +105,7 @@ class AppSmokeTests(unittest.TestCase):
             for tab in tabs:
                 app.button(key=f'nav_{key}_{tab}').click().run()
                 self.assertFalse(app.exception, [e.message for e in app.exception])
-                self.assertEqual(app.toggle(key='mode_switch').value, consumer)
+                self.assertEqual(app.session_state['mode_switch'], consumer)
                 self.assertEqual(app.session_state[key], tab)
         app.selectbox(key='industry_filter').select_index(-1).run()
         self.assertFalse(app.exception)

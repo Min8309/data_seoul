@@ -65,12 +65,35 @@ h2, h3 { letter-spacing: -.5px; }
 [data-baseweb="tab-list"] { gap: 24px; border-bottom: 1px solid #E2E8F0; margin: 12px 0 24px; }
 [data-baseweb="tab"] { min-height: 48px; background: transparent; }
 [data-baseweb="tab"][aria-selected="true"] { color: var(--accent); font-weight: 700; }
-.st-key-mode_selector { max-width: 520px; padding: 16px 20px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; margin-bottom: 20px; }
-.st-key-mode_selector [data-testid="stHorizontalBlock"] { flex-wrap: nowrap; align-items: center; }
+.st-key-mode_selector { max-width: 560px; margin-bottom: 24px; }
+.st-key-mode_selector [data-testid="stHorizontalBlock"] { flex-wrap: nowrap; gap: 16px; }
 .st-key-mode_selector [data-testid="stColumn"] { min-width: 0; }
-.mode-label { font-size: 14px; font-weight: 600; white-space: nowrap; color: #334155; }
-.mode-owner { text-align: right; }
-.mode-consumer { text-align: left; }
+.st-key-mode_selector button {
+    min-height: 52px; border-radius: 999px; padding: 12px 20px;
+    color: #163047; border: 1px solid rgba(255,255,255,.8);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.9), 0 5px 16px rgba(31,70,91,.10);
+    transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.st-key-mode_selector button p { font-size: 14px; font-weight: 700; }
+.st-key-mode_owner_button button {
+    background: linear-gradient(115deg, #D9DED4 0%, #9AE5D9 43%, #7CC9F1 78%, #6A9CE5 100%);
+}
+.st-key-mode_consumer_button button {
+    background: linear-gradient(115deg, #8ED9D2 0%, #ABE1CB 42%, #C6B8DA 78%, #CE9ACB 100%);
+}
+.st-key-mode_selector button[kind="primary"] {
+    border: 2px solid #226B94;
+    box-shadow: 0 0 0 3px rgba(71,151,189,.14), 0 6px 18px rgba(31,70,91,.15);
+}
+.stApp:has(.theme-consumer) .st-key-mode_consumer_button button[kind="primary"] {
+    border-color: #427B73; box-shadow: 0 0 0 3px rgba(4,120,87,.13), 0 6px 18px rgba(31,70,91,.15);
+}
+.st-key-mode_selector button:hover { transform: translateY(-2px); color: #102A3D; }
+.st-key-mode_selector button:focus-visible { outline: 3px solid #2563EB; outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) {
+    .st-key-mode_selector button { transition: none; }
+    .st-key-mode_selector button:hover { transform: none; }
+}
 @media (max-width: 640px) {
     [data-testid="stMainBlockContainer"].block-container {
         padding-left: 1rem;
@@ -82,5 +105,6 @@ h2, h3 { letter-spacing: -.5px; }
     .stApp:has(.theme-owner) .dashboard-hero { padding: 24px 20px; }
     .hotplace-card { padding: 18px; margin-bottom: 8px; }
     [data-baseweb="tab-list"] { gap: 14px; }
-    .mode-label { font-size: 12px; }
+    .st-key-mode_selector button { padding: 10px 8px; }
+    .st-key-mode_selector button p { font-size: 12px; }
 }

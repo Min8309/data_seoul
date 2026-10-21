@@ -153,28 +153,24 @@ with st.sidebar:
 
 st.markdown("원하는 서비스를 선택하세요.")
 
+consumer_mode = st.session_state.get("mode_switch", False)
 with st.container(key="mode_selector"):
-    col_owner, col_switch, col_consumer = st.columns(
-        [116, 76, 116], gap="small", vertical_alignment="center"
-    )
-
+    col_owner, col_consumer = st.columns(2, gap="small")
     with col_owner:
-        st.markdown(
-            '<div class="mode-label mode-owner">👔 사장님 모드</div>',
-            unsafe_allow_html=True
+        st.button(
+            "👔 사장님 모드  ✓" if not consumer_mode else "👔 사장님 모드  ↗",
+            key="mode_owner_button", use_container_width=True,
+            type="primary" if not consumer_mode else "secondary",
+            on_click=navigate_to, args=(False, "개요 요약"),
+            help="업종별 창업 추천과 AI 매출 예측 보기",
         )
-
-    with col_switch:
-        consumer_mode = st.toggle(
-            "모드 선택",
-            key="mode_switch",
-            label_visibility="collapsed"
-        )
-
     with col_consumer:
-        st.markdown(
-            '<div class="mode-label mode-consumer">🔥 소비자 모드</div>',
-            unsafe_allow_html=True
+        st.button(
+            "🔥 소비자 모드  ✓" if consumer_mode else "🔥 소비자 모드  ↗",
+            key="mode_consumer_button", use_container_width=True,
+            type="primary" if consumer_mode else "secondary",
+            on_click=navigate_to, args=(True, "개요 요약"),
+            help="서울 핫플과 지역별 인기 업종 보기",
         )
 
 if consumer_mode:
