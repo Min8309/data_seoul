@@ -14,7 +14,6 @@
 ----
 https://dataseoul.streamlit.app/
 ----
-<img width="838" height="242" alt="image" src="https://github.com/user-attachments/assets/70ab1593-9e2f-44b1-a56f-64e851e9d24b" />
 
 
 
