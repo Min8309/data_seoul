@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import pydeck as pdk
-import base64
 from html import escape
 import altair as alt
 
@@ -46,13 +45,6 @@ def predict_sales(ai_input, model_version):
 
 
 @st.cache_data
-def load_background(path):
-    mime_type = "image/png" if path.suffix == ".png" else "image/jpeg"
-    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
-    return f"data:{mime_type};base64,{encoded}"
-
-
-@st.cache_data
 def load_styles():
     return (BASE_DIR / "assets/styles.css").read_text()
 
@@ -90,13 +82,15 @@ def show_score_chart(data, score_column, title):
         y=alt.Y(f"{score_column}:Q", title=title, scale=alt.Scale(domain=[0, 100])),
     )
     chart = (
-        base.mark_area(color="#D9795F", opacity=0.15)
-        + base.mark_line(color="#D9795F", strokeWidth=3)
-        + base.mark_circle(color="#D9795F", size=110, stroke="white", strokeWidth=2).encode(
+        base.mark_area(color=chart_color, opacity=0.15)
+        + base.mark_line(color=chart_color, strokeWidth=3)
+        + base.mark_circle(color=chart_color, size=110, stroke="white", strokeWidth=2).encode(
             tooltip=[alt.Tooltip("상권_코드_명:N", title="상권"),
                      alt.Tooltip(f"{score_column}:Q", title=title, format=".2f")],
         )
-    ).properties(height=350)
+    ).properties(height=350).configure_view(strokeOpacity=0).configure_axis(
+        gridColor="#E2E8F0", labelColor="#64748B", titleColor="#64748B",
+    ).configure(background="#FFFFFF")
     st.altair_chart(chart, width="stretch")
 
 
@@ -109,15 +103,19 @@ def show_metric_card(label, value):
     )
 
 
-# 3. 제목
+# Dashboard header
+header = st.container()
+st.markdown("<style>" + load_styles() + "</style>", unsafe_allow_html=True)
 
-st.title("🏙️ 서울 상권 AI 추천")
-
-st.write(
-    "서울 상권 데이터를 활용하여 "
-    "창업 추천과 핫플 추천을 확인할 수 있습니다."
-)
-
+with st.sidebar:
+    st.markdown("### 🏙️ WHERE U GO")
+    st.caption("서울 상권 탐색 대시보드")
+    st.divider()
+    if st.button("↺ 필터 초기화", use_container_width=True):
+        for widget_key in ["industry_filter", "consumer_area_select", "hotplace_station_select", "consumer_ai_question_input"]:
+            st.session_state.pop(widget_key, None)
+    st.markdown("#### 탐색 조건")
+    st.caption("서비스 모드에 맞는 분석 조건을 선택하세요.")
 
 # 4. 메뉴 선택
 
@@ -152,19 +150,27 @@ if consumer_mode:
 else:
     mode = "👔 사장님 모드"
 
-# 🎨 모드별 배경
-
-if mode == "👔 사장님 모드":
-    background_path = BASE_DIR / "assets" / "01.jpg"
-
-else:
-    background_path = BASE_DIR / "assets" / "02.png"
-
-st.markdown(
-    "<style>" + load_styles().replace("{background_url}", load_background(background_path)) + "</style>",
-    unsafe_allow_html=True,
-)
-
+# Render a mode marker so CSS switches without replacing native widgets.
+chart_color = "#047857" if consumer_mode else "#2563EB"
+theme_name = "consumer" if consumer_mode else "owner"
+st.markdown(f'<span class="theme-marker theme-{theme_name}" aria-hidden="true"></span>', unsafe_allow_html=True)
+with header:
+    eyebrow = "CITY GUIDE / SEOUL" if consumer_mode else "BUSINESS INTELLIGENCE / SEOUL"
+    title = "이번 주말, 서울 어디로 갈까?" if consumer_mode else "내 가게의 다음 기회, 데이터에서 찾다"
+    description = (
+        "젊은 에너지부터 밤의 활기까지, 취향에 맞는 서울의 핫플을 발견하세요."
+        if consumer_mode else
+        "업종별 상권 경쟁력과 AI 예상 매출을 비교하고, 창업 후보지를 좁혀보세요."
+    )
+    st.markdown(
+        f'<div class="dashboard-hero"><div class="brand">{eyebrow}</div>'
+        f'<h1>{title}</h1><p>{description}</p>'
+        f'<span class="mode-badge">{"도시 탐색 · 소비자 모드" if consumer_mode else "상권 분석 · 사장님 모드"}</span></div>',
+        unsafe_allow_html=True,
+    )
+with st.sidebar:
+    st.divider()
+    st.caption("발견하는 서울 · 핫플·지역별 인기 업종" if consumer_mode else "분석하는 서울 · 업종별 추천·AI 매출 예측")
 
 # 사장님 모드
 if mode == "👔 사장님 모드":
@@ -195,9 +201,10 @@ if mode == "👔 사장님 모드":
 
     # 업종 선택
 
-    selected_industry = st.selectbox(
+    selected_industry = st.sidebar.selectbox(
         "창업하고 싶은 업종을 선택하세요.",
-        industry_list
+        industry_list,
+        key="industry_filter"
     )
     # 추천 상권 데이터 만들기
 
@@ -259,244 +266,259 @@ if mode == "👔 사장님 모드":
         result["AI_예상_월매출"] = predict_sales(ai_input, model_version)
 
 
-    # TOP 10 제목
-
-    st.subheader(
-        f"🏆 {selected_industry} 추천 상권 TOP 10"
+    st.caption("분석 범위 · 선택 업종의 추천 상권 TOP 10 · 매출은 점포당 월 기준")
+    for col, label, value in zip(st.columns(4),
+        ["추천 상권", "최고 추천 점수", "1위 AI 예상 월매출", "분석 업종"],
+        [f"{len(result)}곳", f"{result['평균_창업추천점수'].max():.1f}점",
+         f"{result.iloc[0]['AI_예상_월매출']:,.0f}원", selected_industry]):
+        with col:
+            show_metric_card(label, value)
+    summary_tab, map_tab, compare_tab, data_tab = st.tabs(
+        ["개요 요약", "상권 지도", "지표 비교", "상세 데이터"]
     )
 
+    with data_tab:
+        # TOP 10 제목
 
-    # 보기 좋은 열 만들기
-
-    display_result = result[
-        [
-            "순위",
-            "상권_코드_명",
-            "평균_점포당_월매출",
-            "평균_총_유동인구",
-            "평균_2030비율",
-            "평균_폐업비율",
-            "평균_창업추천점수",
-            "AI_예상_월매출"
-        ]
-    ].copy()
+        st.subheader(
+            f"🏆 {selected_industry} 추천 상권 TOP 10"
+        )
 
 
-    # 표 출력
+        # 보기 좋은 열 만들기
 
-    st.dataframe(
-        display_result,
-        width="stretch",
-        hide_index=True,
-
-        column_config={
-
-            "순위": st.column_config.NumberColumn(
+        display_result = result[
+            [
                 "순위",
-                format="%d"
-            ),
+                "상권_코드_명",
+                "평균_점포당_월매출",
+                "평균_총_유동인구",
+                "평균_2030비율",
+                "평균_폐업비율",
+                "평균_창업추천점수",
+                "AI_예상_월매출"
+            ]
+        ].copy()
 
-            "평균_점포당_월매출": st.column_config.NumberColumn(
-                "평균 점포당 월매출",
-                format="%,.0f원"
-            ),
 
-            "평균_총_유동인구": st.column_config.NumberColumn(
-                "평균 유동인구",
-                format="%,.0f명"
-            ),
+        # 표 출력
 
-            "평균_2030비율": st.column_config.NumberColumn(
-                "2030 비율",
-                format="%.1f%%"
-            ),
+        st.dataframe(
+            display_result,
+            width="stretch",
+            hide_index=True,
 
-            "평균_폐업비율": st.column_config.NumberColumn(
-                "폐업 비율",
-                format="%.1f%%"
-            ),
+            column_config={
 
-            "평균_창업추천점수": st.column_config.NumberColumn(
-                "추천 점수",
-                format="%.1f점"
-            ),
-            "AI_예상_월매출": st.column_config.NumberColumn(
-                "🤖 AI 예상 월매출",
-                format="%,.0f원"
+                "순위": st.column_config.NumberColumn(
+                    "순위",
+                    format="%d"
+                ),
+
+                "평균_점포당_월매출": st.column_config.NumberColumn(
+                    "평균 점포당 월매출",
+                    format="%,.0f원"
+                ),
+
+                "평균_총_유동인구": st.column_config.NumberColumn(
+                    "평균 유동인구",
+                    format="%,.0f명"
+                ),
+
+                "평균_2030비율": st.column_config.NumberColumn(
+                    "2030 비율",
+                    format="%.1f%%"
+                ),
+
+                "평균_폐업비율": st.column_config.NumberColumn(
+                    "폐업 비율",
+                    format="%.1f%%"
+                ),
+
+                "평균_창업추천점수": st.column_config.NumberColumn(
+                    "추천 점수",
+                    format="%.1f점"
+                ),
+                "AI_예상_월매출": st.column_config.NumberColumn(
+                    "🤖 AI 예상 월매출",
+                    format="%,.0f원"
+                )
+            }
+        )
+    with map_tab:
+            # 추천 상권 지도
+
+        st.subheader("🗺️ 추천 상권 TOP 10 위치")
+
+        seller_map = result.copy()
+        seller_map["추천점수표시"] = (
+                seller_map["평균_창업추천점수"]
+                .round(1)
+                .astype(str)
+                + "점"
             )
-        }
-    )
-        # 추천 상권 지도
-
-    st.subheader("🗺️ 추천 상권 TOP 10 위치")
-
-    seller_map = result.copy()
-    seller_map["추천점수표시"] = (
-            seller_map["평균_창업추천점수"]
-            .round(1)
-            .astype(str)
-            + "점"
-        )
-    seller_map["실제매출표시"] = (
-        seller_map["평균_점포당_월매출"]
-        .round(0)
-        .map("{:,.0f}원".format)
-    )
-
-    seller_map["AI매출표시"] = (
-        seller_map["AI_예상_월매출"]
-        .round(0)
-        .map("{:,.0f}원".format)
-    )
-
-    seller_tooltip = {
-            "html": """
-            <b>🏆 순위:</b> {순위}위<br/>
-            <b>상권:</b> {상권_코드_명}<br/>
-            <b>추천 점수:</b> {추천점수표시}<br/>
-            <b>실제 평균 월매출:</b> {실제매출표시}<br/>
-            <b>🤖 AI 예상 월매출:</b> {AI매출표시}
-            """
-        }
-
-        # 지도 출력
-
-
-    show_rank_map(seller_map, [[30, 120, 255, 210], [80, 150, 255, 150], [130, 190, 255, 90]], seller_tooltip["html"])
-
-    # TOP 10 추천 점수 그래프
-
-    st.subheader("📈 추천 상권 TOP 10 점수 비교")
-
-    show_score_chart(result, "평균_창업추천점수", "창업 추천 점수")
-
-    # 1위 추천
-
-    if len(result) > 0:
-
-        top = result.iloc[0]
-
-        st.success(
-            f"🥇 가장 추천하는 상권은 "
-            f"'{top['상권_코드_명']}' 입니다."
-        )
-        st.subheader("🤖 AI 매출 예측")
-
-        col1, col2 = st.columns(2)
-
-        col1.metric(
-            "AI 예상 월매출",
-            f"{top['AI_예상_월매출']:,.0f}원"
+        seller_map["실제매출표시"] = (
+            seller_map["평균_점포당_월매출"]
+            .round(0)
+            .map("{:,.0f}원".format)
         )
 
-        col2.metric(
-            "실제 평균 월매출",
-            f"{top['평균_점포당_월매출']:,.0f}원"
-        )
-        sales_gap = (
-            top["AI_예상_월매출"]
-            - top["평균_점포당_월매출"]
-        )
-        error_rate = (
-            abs(sales_gap)
-            / top["평균_점포당_월매출"]
-            * 100
-            if top["평균_점포당_월매출"] > 0
-            else None
-        )
-        st.metric(
-            "평균 매출 대비 예측 차이율",
-            f"{error_rate:.1f}%" if error_rate is not None else "계산 불가"
-        )
-        if sales_gap >= 0:
-
-            st.info(
-                f"🤖 AI 예상 매출이 실제 평균보다 "
-                f"{sales_gap:,.0f}원 높습니다."
-            )
-
-        else:
-
-            st.info(
-                f"🤖 AI 예상 매출이 실제 평균보다 "
-                f"{abs(sales_gap):,.0f}원 낮습니다."
-            )
-
-
-        # 추천 이유 설명
-
-        st.subheader("💡 왜 이 상권을 추천하나요?")
-
-        st.write(
-            f"**{top['상권_코드_명']}**에서 "
-            f"**{selected_industry}** 업종을 분석한 결과입니다."
+        seller_map["AI매출표시"] = (
+            seller_map["AI_예상_월매출"]
+            .round(0)
+            .map("{:,.0f}원".format)
         )
 
+        seller_tooltip = {
+                "html": """
+                <b>🏆 순위:</b> {순위}위<br/>
+                <b>상권:</b> {상권_코드_명}<br/>
+                <b>추천 점수:</b> {추천점수표시}<br/>
+                <b>실제 평균 월매출:</b> {실제매출표시}<br/>
+                <b>🤖 AI 예상 월매출:</b> {AI매출표시}
+                """
+            }
 
-        col1, col2 = st.columns(2)
+            # 지도 출력
 
 
-        with col1:
+        show_rank_map(seller_map, [[37, 99, 235, 220], [96, 165, 250, 180], [148, 163, 184, 140]], seller_tooltip["html"])
 
-            st.info(
-                f"""
-💰 **매출 경쟁력**
+    with compare_tab:
+        # TOP 10 추천 점수 그래프
 
-평균 점포당 월매출은
-**{top['평균_점포당_월매출']:,.0f}원**입니다.
-"""
+        st.subheader("📈 추천 상권 TOP 10 점수 비교")
+
+        show_score_chart(result, "평균_창업추천점수", "창업 추천 점수")
+
+    with summary_tab:
+        # 1위 추천
+
+        if len(result) > 0:
+
+            top = result.iloc[0]
+
+            st.success(
+                f"🥇 가장 추천하는 상권은 "
+                f"'{top['상권_코드_명']}' 입니다."
+            )
+            st.subheader("🤖 AI 매출 예측")
+
+            col1, col2 = st.columns(2)
+
+            col1.metric(
+                "AI 예상 월매출",
+                f"{top['AI_예상_월매출']:,.0f}원"
             )
 
-            st.info(
-                f"""
-👥 **유동인구**
+            col2.metric(
+                "실제 평균 월매출",
+                f"{top['평균_점포당_월매출']:,.0f}원"
+            )
+            sales_gap = (
+                top["AI_예상_월매출"]
+                - top["평균_점포당_월매출"]
+            )
+            error_rate = (
+                abs(sales_gap)
+                / top["평균_점포당_월매출"]
+                * 100
+                if top["평균_점포당_월매출"] > 0
+                else None
+            )
+            st.metric(
+                "평균 매출 대비 예측 차이율",
+                f"{error_rate:.1f}%" if error_rate is not None else "계산 불가"
+            )
+            if sales_gap >= 0:
 
-평균 유동인구는
-**{top['평균_총_유동인구']:,.0f}명**입니다.
-"""
+                st.info(
+                    f"🤖 AI 예상 매출이 실제 평균보다 "
+                    f"{sales_gap:,.0f}원 높습니다."
+                )
+
+            else:
+
+                st.info(
+                    f"🤖 AI 예상 매출이 실제 평균보다 "
+                    f"{abs(sales_gap):,.0f}원 낮습니다."
+                )
+
+
+            # 추천 이유 설명
+
+            st.subheader("💡 왜 이 상권을 추천하나요?")
+
+            st.write(
+                f"**{top['상권_코드_명']}**에서 "
+                f"**{selected_industry}** 업종을 분석한 결과입니다."
             )
 
 
-        with col2:
-
-            st.info(
-                f"""
-🧑‍🤝‍🧑 **2030 고객 비율**
-
-20~30대 유동인구 비율은
-**{top['평균_2030비율']:.1f}%**입니다.
-"""
-            )
-
-            st.info(
-                f"""
-🏪 **상권 안정성**
-
-평균 폐업 비율은
-**{top['평균_폐업비율']:.1f}%**입니다.
-"""
-            )
+            col1, col2 = st.columns(2)
 
 
-            # 🤖 실제 매출 vs AI 예상 매출 비교
+            with col1:
 
-        st.subheader("🤖 실제 평균 월매출 vs AI 예상 월매출")
+                st.info(
+                    f"""
+    💰 **매출 경쟁력**
 
-        sales_compare = result[
-                [
-                    "상권_코드_명",
-                    "평균_점포당_월매출",
-                    "AI_예상_월매출"
-                ]
-            ].copy()
+    평균 점포당 월매출은
+    **{top['평균_점포당_월매출']:,.0f}원**입니다.
+    """
+                )
 
-        sales_compare = sales_compare.set_index(
-                "상권_코드_명"
-            )
+                st.info(
+                    f"""
+    👥 **유동인구**
 
-        st.bar_chart(
-                sales_compare
-            )
+    평균 유동인구는
+    **{top['평균_총_유동인구']:,.0f}명**입니다.
+    """
+                )
+
+
+            with col2:
+
+                st.info(
+                    f"""
+    🧑‍🤝‍🧑 **2030 고객 비율**
+
+    20~30대 유동인구 비율은
+    **{top['평균_2030비율']:.1f}%**입니다.
+    """
+                )
+
+                st.info(
+                    f"""
+    🏪 **상권 안정성**
+
+    평균 폐업 비율은
+    **{top['평균_폐업비율']:.1f}%**입니다.
+    """
+                )
+
+
+                # 🤖 실제 매출 vs AI 예상 매출 비교
+
+            st.subheader("🤖 실제 평균 월매출 vs AI 예상 월매출")
+
+            sales_compare = result[
+                    [
+                        "상권_코드_명",
+                        "평균_점포당_월매출",
+                        "AI_예상_월매출"
+                    ]
+                ].copy()
+
+            sales_compare = sales_compare.set_index(
+                    "상권_코드_명"
+                )
+
+            st.bar_chart(
+                    sales_compare
+                )
 
 
 # 소비자 모드
@@ -757,323 +779,338 @@ else:
     latest["순위"] = latest.index + 1
 
 
-    st.subheader(
-        f"🔥 {latest_year}년 "
-        f"{latest_quarter}분기 핫플 TOP 20"
+    st.caption(f"데이터 기준 · {latest_year}년 {latest_quarter}분기 · 핫플 TOP 20")
+    for col, label, value in zip(st.columns(4),
+        ["추천 상권", "최고 핫플 점수", "TOP 20 평균 2030 비율", "1위 상권"],
+        [f"{len(latest)}곳", f"{latest['핫플점수'].max():.1f}점",
+         f"{latest['2030비율'].mean():.1f}%", str(latest.iloc[0]['상권_코드_명'])]):
+        with col:
+            show_metric_card(label, value)
+    summary_tab, map_tab, compare_tab, data_tab = st.tabs(
+        ["개요 요약", "상권 지도", "지역별 업종", "상세 데이터"]
     )
 
-
-    # 출력 데이터
-
-    display_hot = latest[
-        [
-            "순위",
-            "상권_코드_명",
-            "총_유동인구_수",
-            "2030비율",
-            "주말_유동인구_수",
-            "야간_유동인구_수",
-            "핫플점수"
-        ]
-    ].copy()
+    with data_tab:
+        st.subheader(
+            f"🔥 {latest_year}년 "
+            f"{latest_quarter}분기 핫플 TOP 20"
+        )
 
 
-    display_hot.columns = [
-        "순위",
-        "상권",
-        "총 유동인구",
-        "2030 비율",
-        "주말 유동인구",
-        "야간 유동인구",
-        "핫플 점수"
-    ]
+        # 출력 데이터
 
-
-    # 표 출력
-
-    st.dataframe(
-        display_hot,
-        width="stretch",
-        hide_index=True,
-        column_config={
-
-            "순위": st.column_config.NumberColumn(
+        display_hot = latest[
+            [
                 "순위",
-                format="%d"
-            ),
-
-            "총 유동인구": st.column_config.NumberColumn(
-                "총 유동인구",
-                format="%,.0f명"
-            ),
-
-            "2030 비율": st.column_config.NumberColumn(
-                "2030 비율",
-                format="%.1f%%"
-            ),
-
-            "주말 유동인구": st.column_config.NumberColumn(
-                "주말 유동인구",
-                format="%,.0f명"
-            ),
-
-            "야간 유동인구": st.column_config.NumberColumn(
-                "야간 유동인구",
-                format="%,.0f명"
-            ),
-
-            "핫플 점수": st.column_config.NumberColumn(
-                "핫플 점수",
-                format="%.1f점"
-            )
-        }
-    )
+                "상권_코드_명",
+                "총_유동인구_수",
+                "2030비율",
+                "주말_유동인구_수",
+                "야간_유동인구_수",
+                "핫플점수"
+            ]
+        ].copy()
 
 
-    # 🗺️ 서울 핫플 TOP 20 위치
-
-    st.subheader("🗺️ 서울 핫플 TOP 20 위치")
-
-    consumer_map = latest.copy()
-
-    # 툴팁용 문자열
-    consumer_map["핫플점수표시"] = (
-        consumer_map["핫플점수"]
-        .round(1)
-        .astype(str)
-        + "점"
-    )
-
-    consumer_map["유동인구표시"] = (
-        consumer_map["총_유동인구_수"]
-        .round(0)
-        .map("{:,.0f}명".format)
-    )
-
-    consumer_map["2030표시"] = (
-        consumer_map["2030비율"]
-        .round(1)
-        .astype(str)
-        + "%"
-    )
-
-    # 마우스 툴팁
-    consumer_tooltip = {
-        "html": """
-        <b>🔥 순위:</b> {순위}위<br/>
-        <b>상권:</b> {상권_코드_명}<br/>
-        <b>핫플 점수:</b> {핫플점수표시}<br/>
-        <b>총 유동인구:</b> {유동인구표시}<br/>
-        <b>2030 비율:</b> {2030표시}
-        """
-    }
-
-    show_rank_map(consumer_map, [[255, 60, 60, 210], [255, 120, 80, 150], [255, 180, 100, 90]], consumer_tooltip["html"])
-
-    # 🏪 지역별 인기 업종 TOP 10
-
-    st.divider()
-
-    st.subheader("🏪 지역별 인기 업종 TOP 10")
-
-    area_list = (
-        latest["상권_코드_명"]
-        .dropna()
-        .unique()
-        .tolist()
-    )
-
-    selected_area = st.selectbox(
-        "지역을 선택하세요.",
-        area_list,
-        key="consumer_area_select"
-    )
-
-    startup = load_startup_data()
-    area_shop = startup[
-        startup["상권_코드_명"] == selected_area
-    ].copy()
-
-    area_shop = area_shop.sort_values(
-        "평균_점포당_월매출",
-        ascending=False
-    ).head(10)
-
-    area_shop = area_shop.reset_index(drop=True)
-
-    area_shop["순위"] = area_shop.index + 1
-
-    shop_display = area_shop[
-        [
+        display_hot.columns = [
             "순위",
-            "서비스_업종_코드_명",
-            "평균_점포당_월매출",
-            "평균_총_유동인구",
-            "평균_2030비율"
+            "상권",
+            "총 유동인구",
+            "2030 비율",
+            "주말 유동인구",
+            "야간 유동인구",
+            "핫플 점수"
         ]
-    ].copy()
 
-    shop_display.columns = [
-        "순위",
-        "업종",
-        "평균 월매출",
-        "평균 유동인구",
-        "2030 비율"
-    ]
 
-    st.dataframe(
-        shop_display,
-        width="stretch",
-        hide_index=True,
-        column_config={
-            "평균 월매출": st.column_config.NumberColumn(
-                "평균 월매출",
-                format="%,.0f원"
-            ),
-            "평균 유동인구": st.column_config.NumberColumn(
-                "평균 유동인구",
-                format="%,.0f명"
-            ),
-            "2030 비율": st.column_config.NumberColumn(
-                "2030 비율",
-                format="%.1f%%"
-            )
+        # 표 출력
+
+        st.dataframe(
+            display_hot,
+            width="stretch",
+            hide_index=True,
+            column_config={
+
+                "순위": st.column_config.NumberColumn(
+                    "순위",
+                    format="%d"
+                ),
+
+                "총 유동인구": st.column_config.NumberColumn(
+                    "총 유동인구",
+                    format="%,.0f명"
+                ),
+
+                "2030 비율": st.column_config.NumberColumn(
+                    "2030 비율",
+                    format="%.1f%%"
+                ),
+
+                "주말 유동인구": st.column_config.NumberColumn(
+                    "주말 유동인구",
+                    format="%,.0f명"
+                ),
+
+                "야간 유동인구": st.column_config.NumberColumn(
+                    "야간 유동인구",
+                    format="%,.0f명"
+                ),
+
+                "핫플 점수": st.column_config.NumberColumn(
+                    "핫플 점수",
+                    format="%.1f점"
+                )
+            }
+        )
+
+
+    with map_tab:
+        # 🗺️ 서울 핫플 TOP 20 위치
+
+        st.subheader("🗺️ 서울 핫플 TOP 20 위치")
+
+        consumer_map = latest.copy()
+
+        # 툴팁용 문자열
+        consumer_map["핫플점수표시"] = (
+            consumer_map["핫플점수"]
+            .round(1)
+            .astype(str)
+            + "점"
+        )
+
+        consumer_map["유동인구표시"] = (
+            consumer_map["총_유동인구_수"]
+            .round(0)
+            .map("{:,.0f}명".format)
+        )
+
+        consumer_map["2030표시"] = (
+            consumer_map["2030비율"]
+            .round(1)
+            .astype(str)
+            + "%"
+        )
+
+        # 마우스 툴팁
+        consumer_tooltip = {
+            "html": """
+            <b>🔥 순위:</b> {순위}위<br/>
+            <b>상권:</b> {상권_코드_명}<br/>
+            <b>핫플 점수:</b> {핫플점수표시}<br/>
+            <b>총 유동인구:</b> {유동인구표시}<br/>
+            <b>2030 비율:</b> {2030표시}
+            """
         }
-    )
 
+        show_rank_map(consumer_map, [[234, 88, 12, 230], [5, 150, 105, 190], [110, 231, 183, 160]], consumer_tooltip["html"])
 
-    # 📊 서울 핫플 TOP 20 점수 비교
+    with compare_tab:
+        # 🏪 지역별 인기 업종 TOP 10
 
-    st.divider()
+        st.divider()
 
-    st.subheader("📈 서울 핫플 TOP 20 점수 비교")
+        st.subheader("🏪 지역별 인기 업종 TOP 10")
 
-    show_score_chart(latest, "핫플점수", "핫플 점수")
-
-    # TOP 10 핫플 상세
-    if len(latest) > 0:
-
-        detail_top10 = latest.head(10).copy()
-
-        detail_top10["선택메뉴"] = (
-            detail_top10["순위"].astype(str)
-            + "위 - "
-            + detail_top10["상권_코드_명"]
+        area_list = (
+            latest["상권_코드_명"]
+            .dropna()
+            .unique()
+            .tolist()
         )
 
-        # TOP 10 역 선택
-
-        selected_station = st.selectbox(
-            "핫플 역 선택",
-            detail_top10["선택메뉴"].tolist(),
-            key="hotplace_station_select",
-            label_visibility="collapsed"
+        selected_area = st.selectbox(
+            "지역을 선택하세요.",
+            area_list,
+            key="consumer_area_select"
         )
 
-        # 선택한 역 데이터
-        top = detail_top10[
-            detail_top10["선택메뉴"] == selected_station
-        ].iloc[0]
+        startup = load_startup_data()
+        area_shop = startup[
+            startup["상권_코드_명"] == selected_area
+        ].copy()
 
-        top_rank = int(top["순위"])
+        area_shop = area_shop.sort_values(
+            "평균_점포당_월매출",
+            ascending=False
+        ).head(10)
 
+        area_shop = area_shop.reset_index(drop=True)
 
-        # 선택한 핫플 소개
+        area_shop["순위"] = area_shop.index + 1
 
-        st.markdown(
-            f"""
-<div class="hotplace-card">
+        shop_display = area_shop[
+            [
+                "순위",
+                "서비스_업종_코드_명",
+                "평균_점포당_월매출",
+                "평균_총_유동인구",
+                "평균_2030비율"
+            ]
+        ].copy()
 
-<div style="
-    font-size:14px;
-    font-weight:700;
-    color:#B95F47;
-">
-🔥 {latest_year}년 {latest_quarter}분기 핫플 {top_rank}위
-</div>
+        shop_display.columns = [
+            "순위",
+            "업종",
+            "평균 월매출",
+            "평균 유동인구",
+            "2030 비율"
+        ]
 
-<div style="
-    font-size:26px;
-    font-weight:800;
-    color:#17384c;
-    margin-top:8px;
-">
-{escape(top['상권_코드_명'])}
-</div>
-
-<div style="
-    font-size:15px;
-    color:#455a64;
-    margin-top:8px;
-">
-유동인구 · 2030 비율 · 주말 · 야간 방문 특성을 종합한 결과입니다.
-</div>
-
-</div>
-""",
-            unsafe_allow_html=True
+        st.dataframe(
+            shop_display,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "평균 월매출": st.column_config.NumberColumn(
+                    "평균 월매출",
+                    format="%,.0f원"
+                ),
+                "평균 유동인구": st.column_config.NumberColumn(
+                    "평균 유동인구",
+                    format="%,.0f명"
+                ),
+                "2030 비율": st.column_config.NumberColumn(
+                    "2030 비율",
+                    format="%.1f%%"
+                )
+            }
         )
 
-        # 핵심 지표
 
-        col1, col2, col3 = st.columns(3)
+    with summary_tab:
+        # 📊 서울 핫플 TOP 20 점수 비교
 
-        with col1:
-            show_metric_card("🔥 핫플 점수", f"{top['핫플점수']:.1f}점")
-        with col2:
-            show_metric_card("👥 총 유동인구", f"{top['총_유동인구_수']:,.0f}명")
-        with col3:
-            show_metric_card("🧑‍🤝‍🧑 2030 비율", f"{top['2030비율']:.1f}%")
+        st.divider()
 
-        # 왜 여기가 핫플인가요?
+        st.subheader("📈 서울 핫플 TOP 20 점수 비교")
 
-        st.subheader("💡 왜 여기가 핫플인가요?")
+        show_score_chart(latest, "핫플점수", "핫플 점수")
 
-        col4, col5 = st.columns(2)
+        # TOP 10 핫플 상세
+        if len(latest) > 0:
 
-        with col4:
+            detail_top10 = latest.head(10).copy()
 
-            weekend_card = f"""
-<div class="hotplace-info">
-<div style="font-size:17px; font-weight:700; color:#17384c;">
-🎉 주말 유동인구
-</div>
+            detail_top10["선택메뉴"] = (
+                detail_top10["순위"].astype(str)
+                + "위 - "
+                + detail_top10["상권_코드_명"]
+            )
 
-<div style="font-size:14px; margin-top:10px;">
-토요일 + 일요일 방문자
-</div>
+            # TOP 10 역 선택
 
-<div style="font-size:27px; font-weight:800; color:#17384c; margin-top:6px;">
-{top['주말_유동인구_수']:,.0f}명
-</div>
-</div>
-"""
+            selected_station = st.selectbox(
+                "핫플 역 선택",
+                detail_top10["선택메뉴"].tolist(),
+                key="hotplace_station_select",
+                label_visibility="collapsed"
+            )
+
+            # 선택한 역 데이터
+            top = detail_top10[
+                detail_top10["선택메뉴"] == selected_station
+            ].iloc[0]
+
+            top_rank = int(top["순위"])
+
+
+            # 선택한 핫플 소개
 
             st.markdown(
-                weekend_card,
+                f"""
+    <div class="hotplace-card">
+
+    <div style="
+        font-size:14px;
+        font-weight:700;
+        color:var(--accent);
+    ">
+    🔥 {latest_year}년 {latest_quarter}분기 핫플 {top_rank}위
+    </div>
+
+    <div style="
+        font-size:26px;
+        font-weight:800;
+        color:#0F172A;
+        margin-top:8px;
+    ">
+    {escape(top['상권_코드_명'])}
+    </div>
+
+    <div style="
+        font-size:15px;
+        color:#455a64;
+        margin-top:8px;
+    ">
+    유동인구 · 2030 비율 · 주말 · 야간 방문 특성을 종합한 결과입니다.
+    </div>
+
+    </div>
+    """,
                 unsafe_allow_html=True
             )
 
+            # 핵심 지표
 
-        with col5:
+            col1, col2, col3 = st.columns(3)
 
-            night_card = f"""
-<div class="hotplace-info">
-<div style="font-size:17px; font-weight:700; color:#17384c;">
-🌙 야간 유동인구
-</div>
+            with col1:
+                show_metric_card("🔥 핫플 점수", f"{top['핫플점수']:.1f}점")
+            with col2:
+                show_metric_card("👥 총 유동인구", f"{top['총_유동인구_수']:,.0f}명")
+            with col3:
+                show_metric_card("🧑‍🤝‍🧑 2030 비율", f"{top['2030비율']:.1f}%")
 
-<div style="font-size:14px; margin-top:10px;">
-17시 ~ 24시 방문자
-</div>
+            # 왜 여기가 핫플인가요?
 
-<div style="font-size:27px; font-weight:800; color:#17384c; margin-top:6px;">
-{top['야간_유동인구_수']:,.0f}명
-</div>
-</div>
-"""
+            st.subheader("💡 왜 여기가 핫플인가요?")
 
-            st.markdown(
-                night_card,
-                unsafe_allow_html=True
-            )
+            col4, col5 = st.columns(2)
+
+            with col4:
+
+                weekend_card = f"""
+    <div class="hotplace-info">
+    <div style="font-size:17px; font-weight:700; color:#0F172A;">
+    🎉 주말 유동인구
+    </div>
+
+    <div style="font-size:14px; margin-top:10px;">
+    토요일 + 일요일 방문자
+    </div>
+
+    <div style="font-size:27px; font-weight:800; color:#0F172A; margin-top:6px;">
+    {top['주말_유동인구_수']:,.0f}명
+    </div>
+    </div>
+    """
+
+                st.markdown(
+                    weekend_card,
+                    unsafe_allow_html=True
+                )
+
+
+            with col5:
+
+                night_card = f"""
+    <div class="hotplace-info">
+    <div style="font-size:17px; font-weight:700; color:#0F172A;">
+    🌙 야간 유동인구
+    </div>
+
+    <div style="font-size:14px; margin-top:10px;">
+    17시 ~ 24시 방문자
+    </div>
+
+    <div style="font-size:27px; font-weight:800; color:#0F172A; margin-top:6px;">
+    {top['야간_유동인구_수']:,.0f}명
+    </div>
+    </div>
+    """
+
+                st.markdown(
+                    night_card,
+                    unsafe_allow_html=True
+                )

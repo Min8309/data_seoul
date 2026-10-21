@@ -33,8 +33,9 @@ class AppSmokeTests(unittest.TestCase):
         app = self.app()
         app.toggle(key='mode_switch').set_value(True).run()
         self.assertFalse(app.exception)
-        self.assertEqual(len(app.dataframe[0].value), 20)
-        self.assertEqual(app.dataframe[0].value['순위'].tolist(), list(range(1, 21)))
+        ranking = next(table.value for table in app.dataframe if '핫플 점수' in table.value.columns)
+        self.assertEqual(len(ranking), 20)
+        self.assertEqual(ranking['순위'].tolist(), list(range(1, 21)))
         for question in ['주말 유동인구 많은 곳', '밤에 사람 많은 곳', '2030이 많은 곳', '핫플 추천']:
             app.text_input(key='consumer_ai_question_input').set_value(question)
             app.button(key='consumer_ai_question_button').click().run()
