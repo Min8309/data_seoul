@@ -114,10 +114,14 @@ def navigate_to(consumer, tab):
 
 
 with st.sidebar:
-    if LOGO_PATH.is_file():
-        st.image(str(LOGO_PATH), width="stretch")
-    st.markdown("### 서울 어디가")
-    st.caption("서울 상권 탐색 대시보드")
+    with st.container(key="sidebar_brand"):
+        logo_col, title_col = st.columns([1, 3], gap="small", vertical_alignment="center")
+        with logo_col:
+            if LOGO_PATH.is_file():
+                st.image(str(LOGO_PATH), width=64)
+        with title_col:
+            st.markdown("**서울 어디가**")
+            st.caption("서울 상권 탐색 대시보드")
     st.divider()
     for consumer, heading, items in [
         (False, "👔 창업 추천", [
