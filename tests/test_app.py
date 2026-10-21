@@ -95,6 +95,13 @@ class AppSmokeTests(unittest.TestCase):
             (True, 'consumer_tabs', ['상권 지도', '지역별 업종', '상세 데이터', '개요 요약']),
             (False, 'owner_tabs', ['상권 지도', '지표 비교', '상세 데이터', '개요 요약']),
         ]:
+            app.toggle(key='mode_switch').set_value(consumer).run()
+            self.assertFalse(app.exception)
+            nav_buttons = [button for button in app.sidebar.button
+                           if button.key.startswith('nav_')]
+            self.assertEqual(len(nav_buttons), 4)
+            self.assertTrue(all(button.key.startswith(f'nav_{key}_')
+                                for button in nav_buttons))
             for tab in tabs:
                 app.button(key=f'nav_{key}_{tab}').click().run()
                 self.assertFalse(app.exception, [e.message for e in app.exception])

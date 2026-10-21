@@ -131,6 +131,8 @@ with st.sidebar:
             ("상세 데이터", "핫플 TOP 20 데이터"),
         ]),
     ]:
+        if consumer != st.session_state.get("mode_switch", False):
+            continue
         st.markdown(f"#### {heading}")
         for tab, label in items:
             tab_key = "consumer_tabs" if consumer else "owner_tabs"
@@ -145,7 +147,7 @@ with st.sidebar:
                 on_click=navigate_to, args=(consumer, tab),
             )
     st.divider()
-    st.caption("메뉴를 누르면 해당 모드와 분석 탭이 함께 열립니다.")
+    st.caption("현재 모드의 메뉴입니다. 클릭하면 해당 분석 탭이 열립니다.")
 
 # 4. 메뉴 선택
 
