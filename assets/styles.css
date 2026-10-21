@@ -63,44 +63,44 @@ h2, h3 { letter-spacing: -.5px; }
 .hotplace-label { font-size: 13px; color: #64748B; font-weight: 600; }
 .hotplace-info { border-left: 4px solid var(--accent); }
 /* Folder labels: keep native tabs, keyboard focus and sidebar state sync. */
-:is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab-list"] {
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) :is([role="tablist"], [data-baseweb="tab-list"]) {
     gap: 4px; padding: 8px 0 0; margin: 12px 0 0;
     border-bottom: 3px solid var(--accent); background: transparent;
     overflow-x: auto;
 }
-:is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab"] {
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) :is([role="tab"], [data-baseweb="tab"]) {
     --label-bg: #DBEAFE; --label-ink: #1E3A8A;
     position: relative; isolation: isolate;
     flex: 1 0 140px; min-height: 56px; padding: 12px 22px;
     border: 0; border-radius: 0; background: transparent;
     color: var(--label-ink); white-space: nowrap;
 }
-:is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab"]::before {
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) :is([role="tab"], [data-baseweb="tab"])::before {
     content: ""; position: absolute; inset: 4px 0 0; z-index: -1;
     background: var(--label-bg);
     clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
 }
-.st-key-owner_tabs [data-baseweb="tab"]:nth-child(2) { --label-bg: #CFFAFE; --label-ink: #155E75; }
-.st-key-owner_tabs [data-baseweb="tab"]:nth-child(3) { --label-bg: #E0E7FF; --label-ink: #3730A3; }
-.st-key-owner_tabs [data-baseweb="tab"]:nth-child(4) { --label-bg: #E2E8F0; --label-ink: #334155; }
-.st-key-consumer_tabs [data-baseweb="tab"] { --label-bg: #D1FAE5; --label-ink: #065F46; }
-.st-key-consumer_tabs [data-baseweb="tab"]:nth-child(2) { --label-bg: #CCFBF1; --label-ink: #115E59; }
-.st-key-consumer_tabs [data-baseweb="tab"]:nth-child(3) { --label-bg: #FEF3C7; --label-ink: #78350F; }
-.st-key-consumer_tabs [data-baseweb="tab"]:nth-child(4) { --label-bg: #E2E8F0; --label-ink: #334155; }
-:is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab"] p {
+.st-key-owner_tabs :is([role="tab"], [data-baseweb="tab"]):nth-child(2) { --label-bg: #CFFAFE; --label-ink: #155E75; }
+.st-key-owner_tabs :is([role="tab"], [data-baseweb="tab"]):nth-child(3) { --label-bg: #E0E7FF; --label-ink: #3730A3; }
+.st-key-owner_tabs :is([role="tab"], [data-baseweb="tab"]):nth-child(4) { --label-bg: #E2E8F0; --label-ink: #334155; }
+.st-key-consumer_tabs :is([role="tab"], [data-baseweb="tab"]) { --label-bg: #D1FAE5; --label-ink: #065F46; }
+.st-key-consumer_tabs :is([role="tab"], [data-baseweb="tab"]):nth-child(2) { --label-bg: #CCFBF1; --label-ink: #115E59; }
+.st-key-consumer_tabs :is([role="tab"], [data-baseweb="tab"]):nth-child(3) { --label-bg: #FEF3C7; --label-ink: #78350F; }
+.st-key-consumer_tabs :is([role="tab"], [data-baseweb="tab"]):nth-child(4) { --label-bg: #E2E8F0; --label-ink: #334155; }
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) :is([role="tab"], [data-baseweb="tab"]) p {
     font-size: 14px; font-weight: 650; letter-spacing: -.2px;
 }
-:is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab"][aria-selected="true"] {
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) :is([role="tab"], [data-baseweb="tab"])[aria-selected="true"] {
     color: #FFFFFF;
 }
-:is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab"][aria-selected="true"]::before {
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) :is([role="tab"], [data-baseweb="tab"])[aria-selected="true"]::before {
     top: 0; background: var(--accent);
 }
-:is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab"]:hover::before { filter: brightness(.96); }
-:is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab"]:focus-visible {
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) :is([role="tab"], [data-baseweb="tab"]):hover::before { filter: brightness(.96); }
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) :is([role="tab"], [data-baseweb="tab"]):focus-visible {
     outline: 2px solid var(--accent); outline-offset: -5px;
 }
-:is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab"][aria-selected="true"]:focus-visible {
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) :is([role="tab"], [data-baseweb="tab"])[aria-selected="true"]:focus-visible {
     outline-color: #FFFFFF;
 }
 :is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab-highlight"],
@@ -148,10 +148,16 @@ h2, h3 { letter-spacing: -.5px; }
     .stApp:has(.theme-consumer) .dashboard-hero,
     .stApp:has(.theme-owner) .dashboard-hero { padding: 24px 20px; }
     .hotplace-card { padding: 18px; margin-bottom: 8px; }
-    :is(.st-key-owner_tabs, .st-key-consumer_tabs) [data-baseweb="tab"] {
+    :is(.st-key-owner_tabs, .st-key-consumer_tabs) :is([role="tab"], [data-baseweb="tab"]) {
         flex: 1 0 116px; padding: 10px 16px; min-height: 50px;
     }
     :is(.st-key-owner_tabs, .st-key-consumer_tabs) [role="tabpanel"] { padding: 18px 12px; }
     .st-key-mode_selector button { padding: 10px 8px; }
     .st-key-mode_selector button p { font-size: 12px; }
+}
+
+/* Streamlit 1.65 uses React Aria; hide its default line indicator. */
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) .react-aria-SelectionIndicator,
+:is(.st-key-owner_tabs, .st-key-consumer_tabs) [role="tablist"]::after {
+    display: none;
 }
